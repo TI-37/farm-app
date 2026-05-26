@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="農作業記録">
+<title>農作業記録</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green-dark:#1B4332;
+  --green-mid:#2C5F2E;
+  --green-light:#D8F3DC;
+  --green-pale:#F0FAF2;
+  --text:#1a1a1a;
+  --text-sub:#666;
+  --text-hint:#999;
+  --border:#e0e0e0;
+  --bg:#f8f8f6;
+  --card:#ffffff;
+  --radius:14px;
+  --radius-sm:10px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:16px;max-width:430px;margin:0 auto;min-height:100vh;padding-bottom:calc(120px + var(--safe-bottom))}
+/* Header */
+.hdr{background:var(--green-dark);color:#fff;padding:calc(14px + var(--safe-top)) max(16px,env(safe-area-inset-left,16px)) 12px max(16px,env(safe-area-inset-left,16px));display:flex;justify-content:space-between;align-items:flex-end;position:sticky;top:0;z-index:50;border-radius:0}
+.hdr h1{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.hdr .meta{font-size:12px;opacity:.75;text-align:right}
+/* Bottom Nav */
+.btm-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:50;display:flex;flex-direction:column}
+.btm-subtabs-bar{display:none;background:#fff;border-top:1px solid var(--border);padding:0 12px}
+.btm-subtabs-bar.visible{display:flex}
+.btm-tabs-bar{display:flex;background:var(--green-dark);padding:8px 12px;gap:8px}
+.btm-actions-bar{display:none;background:var(--card);border-top:1px solid var(--border);padding:8px 12px;gap:8px}
+.btm-actions-bar.visible{display:flex}
+.btm-safe{background:var(--green-dark);height:var(--safe-bottom)}
+.tab{flex:1;padding:7px 4px;font-size:11px;font-weight:500;border:none;border-radius:16px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.15);color:rgba(255,255,255,.75);line-height:1.2}
+.tab.active{background:#fff;color:var(--green-dark)}
+/* Cards */
+.section{padding:12px 12px 0}
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:14px;margin-bottom:10px}
+.card-title{font-size:12px;font-weight:700;color:var(--green-mid);letter-spacing:.5px;margin-bottom:12px;text-transform:uppercase}
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.g1{margin-bottom:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+/* Field */
+.f label{font-size:11px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:5px;letter-spacing:.3px}
+.f input,.f select,.f textarea{
+  width:100%;font-size:13px;font-family:'Noto Sans JP',sans-serif;
+  padding:9px 11px;border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);background:#fafafa;
+  color:var(--text);appearance:none;-webkit-appearance:none;
+  transition:border-color .15s
+}
+.f input:focus,.f select:focus,.f textarea:focus{
+  outline:none;border-color:var(--green-mid);background:#fff
+}
+.f select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+  padding-right:30px
+}
+.f textarea{height:72px;resize:none;line-height:1.6}
+.f input[readonly]{background:var(--green-pale);border-color:var(--green-light);color:var(--green-mid)}
+.hint{font-size:11px;color:var(--text-hint);margin-top:4px}
+.hint.ok{color:#2C5F2E;font-weight:500}
+/* Section bar */
+.sbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--green-mid);color:#fff;font-size:13px;font-weight:700;letter-spacing:.3px}
+.sbar .add-btn{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:13px;padding:6px 14px;border-radius:20px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.sbar .add-btn:active{background:rgba(255,255,255,.35)}
+/* Row card */
+.row-card{background:var(--card);border-bottom:1px solid var(--border);padding:9px 14px;position:relative;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.row-num{font-size:10px;font-weight:700;color:var(--green-mid);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase}
+.row-del{position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-hint);padding:2px;line-height:1}
+.row-del:active{color:#c00}
+.empty{text-align:center;padding:32px 20px;color:var(--text-hint);font-size:13px;background:var(--card)}
+.count-bar{font-size:12px;color:var(--text-sub);padding:6px 12px 6px 16px;background:var(--green-pale);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+/* Notes */
+.note-wrap{padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border)}
+textarea.note{width:100%;font-size:13px;font-family:'Noto Sans JP',sans-serif;padding:9px 11px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;color:var(--text);height:90px;resize:none;line-height:1.6}
+textarea.note:focus{outline:none;border-color:var(--green-mid);background:#fff}
+/* Action buttons */
+.btn-m{flex:1;background:var(--green-dark);color:#fff;border:none;padding:10px 8px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:background .15s}
+.btn-m:active{background:var(--green-mid)}
+.btn-m.green{background:var(--green-mid)}
+.btn-s{flex:0 0 auto;background:#f0f0ee;border:1.5px solid var(--border);padding:10px 12px;border-radius:var(--radius-sm);font-size:15px;cursor:pointer;color:var(--text-sub)}
+.btn-s:active{background:#e0e0e0}
+/* Master */
+.row-reg{display:block;width:100%;margin-top:10px;padding:10px;background:var(--green-dark);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.3px}
+.row-reg:active{background:var(--green-mid)}
+.master-count{padding:6px 14px;background:linear-gradient(90deg,#f0faf2,#fafafa);font-size:12px;font-weight:700;color:#2C5F2E;border-bottom:1px solid #e8f5e9;display:flex;justify-content:space-between;align-items:center}
+.master-count span{font-weight:400;font-size:11px;opacity:.75}
+.master-item{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f0f0f0;background:var(--card);font-size:13px;gap:8px;transition:background .1s}
+.master-item .name{flex:1;font-size:13px;color:var(--text)}
+.master-item .sub{font-size:11px;color:#888;margin-left:4px}
+.master-item .tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--green-pale);color:var(--green-mid);white-space:nowrap}
+.master-item .del-m{background:none;border:none;color:#ccc;cursor:pointer;font-size:15px;padding:4px;line-height:1}
+.master-item .del-m:active{color:#c00}
+.master-item .edit-m{background:none;border:none;color:#aaa;cursor:pointer;font-size:13px;padding:4px 6px;line-height:1}
+.master-item .edit-m:active{color:var(--green-dark)}
+.sort-m{background:none;border:1px solid #ddd;color:#888;cursor:pointer;font-size:10px;padding:2px 7px;border-radius:10px;font-family:inherit;margin-left:auto}
+.add-row{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:#fafafa;align-items:flex-end;flex-wrap:wrap}
+.add-row input,.add-row select{font-size:13px;flex:1;min-width:80px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text);font-family:'Noto Sans JP',sans-serif;appearance:none;-webkit-appearance:none}
+.add-row .ok{background:var(--green-dark);color:#fff;border:none;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap}
+.drug-hint{font-size:10px;color:var(--green-mid);margin-left:4px;font-weight:700}
+/* Toast */
+.photo-label{display:flex;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;border:1.5px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;background:#fafafa;width:100%}
+.photo-label:active{background:var(--green-pale)}
+.photo-thumb{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-thumb .del-photo{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.photo-thumb .photo-date{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:9px;padding:3px 5px;font-weight:700}
+.lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.lightbox img{max-width:100%;max-height:70vh;border-radius:10px;object-fit:contain}
+.lightbox .lb-info{color:#fff;font-size:13px;margin-top:12px;text-align:center}
+.lightbox .lb-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,.2);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lightbox .lb-nav{display:flex;gap:16px;margin-top:16px}
+.lightbox .lb-nav button{background:rgba(255,255,255,.15);border:none;color:#fff;padding:10px 24px;border-radius:20px;font-size:14px;cursor:pointer}
+.toast{position:fixed;bottom:calc(90px + var(--safe-bottom));left:50%;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:10px 22px;border-radius:20px;font-size:14px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.show{opacity:1}
+.pane{display:none}.pane.active{display:block}
+
+.row-panel{border:1.5px solid #D8F3DC;border-radius:10px;overflow:hidden}
+.row-toggle{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f0faf2;border:none;width:100%;cursor:pointer;font-family:inherit}
+.row-toggle .row-label{font-size:11px;font-weight:700;color:#2C5F2E;letter-spacing:.5px;white-space:nowrap}
+.row-toggle .row-summary{font-size:12px;color:var(--text-sub);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-toggle .row-arr{font-size:10px;color:#aaa;transition:transform .2s;flex-shrink:0}
+.row-toggle.closed .row-arr{transform:rotate(-90deg)}
+.row-body{padding:12px 12px 8px;border-top:1px solid #D8F3DC;background:#fff}
+.row-body.hidden{display:none}
+.measure-panel{border:1.5px solid #D8F3DC;border-radius:10px;margin-top:8px;overflow:hidden}
+.measure-toggle{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;cursor:pointer;background:#f0faf2;border:none;width:100%;font-size:13px;font-weight:700;color:#2C5F2E;font-family:inherit}
+.measure-toggle .arr{font-size:10px;transition:transform .2s}
+.measure-toggle.open .arr{transform:rotate(180deg)}
+.measure-body{display:none;padding:10px 12px;border-top:1px solid #D8F3DC;background:#fff}
+.measure-body.show{display:block}
+.row-photo-area{margin-top:8px;border:1.5px solid #D8F3DC;border-radius:10px;overflow:hidden}
+.row-photo-btn{display:flex;align-items:center;gap:6px;width:100%;padding:9px 12px;background:#f0faf2;border:none;cursor:pointer;font-family:inherit;font-size:12px;color:#2C5F2E;font-weight:700}
+.row-photo-thumbs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 12px;background:#fff;border-top:1px solid #D8F3DC}
+.mg2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.mf label{font-size:10px;font-weight:700;color:#888;display:block;margin-bottom:3px}
+.mf input{width:100%;font-size:14px;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:7px;background:#fafafa;color:#1a1a1a;font-family:inherit}
+.mf input:focus{outline:none;border-color:#2C5F2E}
+.mf .u{font-size:10px;color:#aaa;margin-top:2px}
+
+.modal-bg{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:430px;max-height:90vh;overflow-y:auto;padding:16px 14px calc(20px + var(--safe-bottom))}
+.modal-sheet::-webkit-scrollbar{display:none}
+.modal-handle{width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 14px}
+.modal-title{font-size:15px;font-weight:700;color:var(--green-dark);margin-bottom:14px;text-align:center}
+.modal-footer{display:flex;gap:8px;margin-top:14px}
+.modal-footer .save-btn{flex:1;background:var(--green-dark);color:#fff;border:none;padding:14px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.modal-footer .del-btn-m{flex:0 0 auto;background:#fff5f5;border:1.5px solid #fecaca;color:#c00;padding:14px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.modal-footer .cancel-btn{flex:0 0 auto;background:#f5f5f5;border:1.5px solid #ddd;padding:14px 14px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit}
+
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:150;display:flex;align-items:flex-end}
+.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:0 0 calc(20px + var(--safe-bottom))}
+.modal-handle{width:40px;height:4px;background:#ccc;border-radius:2px;margin:12px auto 16px}
+.modal-title{font-size:16px;font-weight:700;padding:0 16px 12px;border-bottom:1px solid var(--border)}
+.modal-body{padding:14px 16px}
+.modal-footer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border)}
+.btn-danger{flex:1;background:#c00;color:#fff;border:none;padding:13px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-save{flex:2;background:var(--green-dark);color:#fff;border:none;padding:13px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-cancel{flex:1;background:#f0f0ee;border:1px solid var(--border);padding:13px;border-radius:var(--radius-sm);font-size:14px;cursor:pointer;font-family:inherit;color:var(--text)}
+
+.h-tab{flex:1;padding:8px 4px;font-size:11px;font-weight:700;border:none;border-bottom:2.5px solid transparent;background:transparent;color:#999;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-2px}
+.h-tab.active{color:var(--green-dark);border-bottom-color:var(--green-dark)}
+.hist-group-label{padding:7px 14px;background:linear-gradient(90deg,#f0faf2,#fafafa);font-size:12px;font-weight:700;color:#2C5F2E;border-bottom:1px solid #e8f5e9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.hist-group-label span{font-weight:400;font-size:11px;opacity:.7}
+.hist-date-label{padding:6px 14px;background:linear-gradient(90deg,#f0faf2,#fafafa);font-size:12px;font-weight:700;color:#2C5F2E;border-bottom:1px solid #e8f5e9;position:sticky;top:0;z-index:10}
+.hist-memo-card{padding:9px 14px;border-bottom:1px solid #f0f0f0;background:#fff;cursor:pointer;transition:background .1s;-webkit-tap-highlight-color:rgba(0,0,0,.05)}
+.hist-memo-card:active{background:#f8f8f8}
+.hist-memo-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.hist-type-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap}
+.hist-field{font-size:11px;color:#888;flex:1}
+.hist-time{font-size:10px;color:#bbb}
+.hist-memo-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hist-item{font-size:13px;font-weight:700;color:#1a1a1a}
+.hist-content{font-size:12px;color:#666}
+.hist-drug{font-size:11px;color:#999;margin-top:3px}
+.hist-expand-icon{font-size:10px;color:#ccc;margin-left:auto;transition:transform .2s;flex-shrink:0}
+.hist-memo-card.open .hist-expand-icon{transform:rotate(180deg)}
+.hist-detail{max-height:0;overflow:hidden;transition:max-height .25s ease;background:#f9faf8;border-bottom:1px solid #eee}
+.hist-detail.open{max-height:600px}
+.hist-detail-inner{padding:10px 14px 12px;display:flex;flex-direction:column;gap:5px}
+.hist-detail-row{display:flex;gap:6px;font-size:12px;align-items:baseline}
+.hist-detail-row .lbl{color:#aaa;font-size:10px;font-weight:700;min-width:40px;flex-shrink:0}
+.hist-detail-row .val{color:var(--text)}
+.hist-detail-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid #eee}
+
+.graph-btn{padding:6px 14px;font-size:12px;font-weight:700;border:1.5px solid var(--border);border-radius:16px;background:#fafafa;color:#666;cursor:pointer;font-family:inherit}
+.graph-btn.active{background:var(--green-dark);color:#fff;border-color:var(--green-dark)}
+
+.range-btn{padding:5px 10px;font-size:11px;font-weight:700;border:1.5px solid var(--border);border-radius:12px;background:#fafafa;color:#666;cursor:pointer;font-family:inherit}
+.range-btn.active{background:var(--green-dark);color:#fff;border-color:var(--green-dark)}
+
+/* デュアルレンジスライダー */
+.dual-range-wrap{position:relative;height:28px}
+.dual-range-track{position:absolute;top:50%;left:0;right:0;height:5px;background:#e0e0e0;border-radius:3px;transform:translateY(-50%);pointer-events:none}
+.dual-range-fill{position:absolute;top:0;bottom:0;background:var(--green-dark);border-radius:3px;pointer-events:auto;cursor:grab}
+.dual-range-wrap input[type=range]{position:absolute;width:100%;height:100%;top:0;left:0;background:transparent;-webkit-appearance:none;appearance:none;pointer-events:none;margin:0;padding:0}
+.dual-range-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;pointer-events:all}
+.dual-range-wrap input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;pointer-events:all;background:var(--green-dark)}
+#range-start::-webkit-slider-thumb{background:var(--green-dark)}
+#range-end::-webkit-slider-thumb{background:#E53935}
+
+/* 価格ウィジェット */
+.price-section{background:#fff}
+.price-grid{display:grid;grid-template-columns:1fr 1fr}
+.price-cell{padding:9px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;background:#fff}
+.price-cell-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.price-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.price-name{color:var(--text);font-size:12px;font-weight:700;line-height:1.2;flex:1}
+.price-date-top{color:#aaa;font-size:10px;font-weight:400;white-space:nowrap}
+.price-value{color:var(--text);font-size:16px;font-weight:700;line-height:1;letter-spacing:-.5px;display:flex;align-items:baseline;gap:3px}
+.price-unit{color:var(--text-sub);font-size:10px;font-weight:400}
+.price-bar{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:#f7f7f5;border-top:1px solid var(--border)}
+
+/* マスタ子タブ */
+.m-tab{flex:1;padding:8px 4px;font-size:12px;font-weight:700;border:none;border-bottom:2.5px solid transparent;background:transparent;color:#999;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s}
+.m-tab.active{color:var(--green-dark);border-bottom-color:var(--green-dark)}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🌱 農作業記録</h1>
+  <div class="meta">
+    <div id="today-lbl"></div>
+    <div id="humid-lbl" style="margin-top:2px"></div>
+  </div>
+</div>
+
+<!-- 記録タブ -->
+<div class="pane active" id="pane-rec">
+  <div style="padding:8px 12px 6px;background:var(--card);border-bottom:1px solid var(--border)">
+    <div class="g2" style="margin-bottom:6px">
+      <div class="f"><label>記録日</label><input type="date" id="rec-date"></div>
+      <div class="f"><label>天候</label><input type="text" id="weather" placeholder="S/C/R/Sn"></div>
+    </div>
+    <div class="g2" style="margin-bottom:0">
+      <div class="f"><label>気温 (℃)</label><input type="text" id="temp" placeholder="高/低"></div>
+      <div class="f">
+        <label>湿度 (%)</label>
+        <input type="text" id="humid" placeholder="取得中...">
+        <div class="hint" id="humid-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sbar">作業記録</div>
+  <div id="row-add-wrap" style="padding:10px 12px;background:var(--card);border-bottom:1px solid var(--border)">
+    <button onclick="addRow()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px dashed var(--border);border-radius:var(--radius-sm);background:#fafafa;width:100%;cursor:pointer;font-family:inherit">
+      <span style="font-size:18px">📋</span>
+      <span style="font-size:13px;font-weight:700;color:var(--green-mid)">作業を追加</span>
+      <span style="font-size:11px;color:var(--text-hint)">タップして入力</span>
+    </button>
+  </div>
+  <div id="rows-wrap"></div>
+  <div class="count-bar" id="row-count" style="display:none">
+    <span id="row-count-text"></span>
+    <button onclick="cancelCurrentRow()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#aaa;padding:2px 4px;line-height:1" title="取り消し">🗑</button>
+  </div>
+
+  <div class="sbar" style="background:var(--green-dark)">写真記録</div>
+  <div class="photo-wrap" style="padding:10px 12px;background:var(--card);border-bottom:1px solid var(--border)">
+    <label class="photo-label" for="photo-input">
+      <span style="font-size:18px">📷</span>
+      <span style="font-size:13px;font-weight:700;color:var(--green-mid)">写真を追加</span>
+      <span style="font-size:11px;color:var(--text-hint)">複数・カメラ可</span>
+      <input type="file" id="photo-input" accept="image/*" multiple onchange="addPhotos(this)" style="display:none">
+    </label>
+    <div id="photo-count" style="font-size:11px;color:#2C5F2E;font-weight:700;margin-bottom:6px"></div>
+    <div id="photo-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
+  </div>
+
+  <!-- 市場価格ウィジェット -->
+  <div class="sbar">
+    <span>市場価格（参考）</span>
+    <span id="price-header-ts" style="font-size:11px;font-weight:400;opacity:.8;margin-left:auto;margin-right:8px"></span>
+    <button onclick="refreshPrices()" style="background:none;border:none;color:rgba(255,255,255,.7);padding:2px 6px;font-size:12px;cursor:pointer;font-family:inherit">↻</button>
+  </div>
+  <div class="price-section">
+    <div class="price-grid" id="price-grid"></div>
+    <div class="price-bar">
+      <span id="price-ts" style="font-size:10px;color:#444">参考値を表示中</span>
+      <button onclick="showEstatSetup()" style="font-size:10px;color:#555;background:none;border:none;cursor:pointer;font-family:inherit">⚙ e-Stat設定</button>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- 履歴タブ -->
+<div class="pane" id="pane-history">
+  <!-- 月フィルター -->
+  <div style="display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:calc(52px + var(--safe-top));z-index:21">
+    <input type="month" id="hist-month" style="flex:1;font-size:14px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;color:var(--text)">
+    <button onclick="filterHistory()" style="background:var(--green-dark);color:#fff;border:none;padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">絞込</button>
+    <button onclick="filterHistory(true)" style="background:#f0f0ee;border:1px solid var(--border);padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;color:#666;font-family:inherit">全て</button>
+  </div>
+  <div id="hist-list"></div>
+  <div style="height:80px"></div>
+</div>
+
+
+<!-- グラフタブ -->
+<div class="pane" id="pane-graph">
+  <div style="padding:10px 12px 0">
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <button class="graph-btn active" id="gbtn-temp" onclick="switchGraph('temp',this)">気温</button>
+        <button class="graph-btn" id="gbtn-humid" onclick="switchGraph('humid',this)">湿度</button>
+        <div id="graph-status" style="font-size:11px;color:#2C5F2E;flex:1;text-align:right"></div>
+        <button id="fetch-btn" onclick="startFetchTemps()" style="background:#1B4332;color:#fff;border:none;padding:6px 12px;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">📥 取得</button>
+      </div>
+      <div id="fetch-progress" style="display:none;margin-bottom:8px">
+        <div style="height:6px;background:#eee;border-radius:3px;overflow:hidden">
+          <div id="fetch-bar" style="height:100%;background:#2C5F2E;transition:width .3s;width:0%"></div>
+        </div>
+        <div id="fetch-text" style="font-size:11px;color:#666;margin-top:3px"></div>
+      </div>
+      <!-- 期間ボタン（1行） -->
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:nowrap">
+        <button class="range-btn active" id="rbtn-1m" onclick="setRange(1,this)">1ヶ月</button>
+        <button class="range-btn" id="rbtn-3m" onclick="setRange(3,this)">3ヶ月</button>
+        <button class="range-btn" id="rbtn-6m" onclick="setRange(6,this)">6ヶ月</button>
+        <button class="range-btn" id="rbtn-1y" onclick="setRange(12,this)">1年</button>
+        <button class="range-btn" id="rbtn-all" onclick="setRange(0,this)">全期間</button>
+        <button class="range-btn" onclick="resetZoom()" style="margin-left:auto;background:#f0f0ee;color:#666">↺</button>
+      </div>
+      <!-- グラフ本体（縦軸固定 + 横スクロール） -->
+      <div style="display:flex;width:100%;position:relative">
+        <div style="flex:0 0 52px;position:relative;z-index:2;background:var(--card)">
+          <canvas id="y-axis-canvas" style="display:block;width:52px;height:240px"></canvas>
+        </div>
+        <div id="chart-scroll" style="flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0">
+          <div id="main-chart-wrap" style="height:240px;position:relative;width:100%">
+            <canvas id="main-chart" style="display:block;height:240px"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- スライダー（グラフ外・常時表示） -->
+      <div style="margin-top:10px;padding:0 4px">
+        <div class="dual-range-wrap">
+          <div class="dual-range-track"><div id="range-fill" class="dual-range-fill"></div></div>
+          <input type="range" id="range-start" min="0" max="100" value="70" oninput="updateRange()">
+          <input type="range" id="range-end" min="0" max="100" value="100" oninput="updateRange()">
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:4px">
+          <span id="range-label-start"></span>
+          <span id="range-label-end"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="height:80px"></div>
+</div>
+</div>
+
+<!-- マスタ管理タブ -->
+<div class="pane" id="pane-master">
+  <div style="padding-bottom:80px">
+    <!-- 品目 -->
+    <div id="msec-hinmoku">
+      <div class="add-row">
+        <input type="text" id="new-hinmoku" placeholder="品目名">
+        <button class="ok" onclick="addMaster('hinmoku')">追加</button>
+      </div>
+      <div id="list-hinmoku"></div>
+    </div>
+
+    <!-- 品種 -->
+    <div id="msec-hinshu" style="display:none">
+      <div class="add-row">
+        <select id="new-hinmoku-ref"></select>
+        <input type="text" id="new-hinshu" placeholder="品種名">
+        <button class="ok" onclick="addMaster('hinshu')">追加</button>
+      </div>
+      <div id="list-hinshu"></div>
+    </div>
+
+    <!-- 作業内容 -->
+    <div id="msec-sagyou" style="display:none">
+      <div class="add-row">
+        <input type="text" id="new-sagyou" placeholder="作業内容">
+        <button class="ok" onclick="addMaster('sagyou')">追加</button>
+      </div>
+      <div id="list-sagyou"></div>
+    </div>
+
+    <!-- 薬剤 -->
+    <div id="msec-drug" style="display:none">
+      <div style="padding:10px 12px;background:#fafafa;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-sub);margin-bottom:8px">
+          区分コード：<b>i</b>=殺虫　<b>f</b>=殺菌　<b>h</b>=除草
+        </div>
+        <div class="g2">
+          <div class="f"><label>薬剤名</label><input type="text" id="new-drug-name" placeholder="例）ダントツ"></div>
+          <div class="f"><label>区分コード</label><input type="text" id="new-drug-code" placeholder="例）i"></div>
+        </div>
+        <div class="g2">
+          <div class="f"><label>希釈倍率</label><input type="text" id="new-drug-rate" placeholder="例）4000倍"></div>
+          <div class="f"><label>対象作物</label><input type="text" id="new-drug-crop" placeholder="例）ネギ全般"></div>
+        </div>
+        <button class="ok" style="width:100%;padding:10px;font-size:13px;margin-top:4px" onclick="addDrug()">薬剤を登録する</button>
+      </div>
+      <div id="list-drug"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let M={
+  hinmoku:['ネギ','ナス','ししぴー','カラーピーマン','スナップエンドウ','カボチャ','小松菜(はまつづき)','小松菜(さくらぎ)','プランターピーマン','キウイ','ブドウ','梨','ウメ','全般'],
+  hinshu:[
+    {h:'ネギ',n:'大河の轟き'},{h:'ネギ',n:'森の奏で'},{h:'ネギ',n:'龍まさり'},{h:'ネギ',n:'陽春の宴'},{h:'ネギ',n:'夏扇タフナー'},
+    {h:'ナス',n:'式部'},{h:'ナス',n:'PC鶴丸'},{h:'ナス',n:'あのみのり'},
+    {h:'ナス',n:'PC筑陽（接木）'},{h:'ナス',n:'PC筑陽（自根）'},
+    {h:'ししぴー',n:'サカタ ししぴー'},{h:'カラーピーマン',n:'フルーピーイエロー'},
+    {h:'小松菜(はまつづき)',n:'はまつづき'},{h:'小松菜(さくらぎ)',n:'さくらぎ'},{h:'カボチャ',n:'恋するマロン'},
+  ],
+  sagyou:['播種','定植','施肥','施肥・畝形成','灌水','散布','防除（殺虫）','防除（殺菌）','防除（除草）','手除草','収穫','出荷','土づくり','鉢上げ','観察・記録','摘心・摘蕾','誘引','マルチ張り','剪定','その他'],
+  drug:[
+    {n:'オンリーワンFL',c:'f',r:'2000倍',crop:'果樹全般'},
+    {n:'ダントツ',c:'i',r:'4000倍',crop:'果樹・ネギ'},
+    {n:'ザクサ',c:'h',r:'',crop:'畦畔・果樹園'},
+    {n:'サンフーロン',c:'h',r:'',crop:'畦畔全般'},
+    {n:'ドライバー（展着剤）',c:'-',r:'1000倍',crop:'混用'},
+    {n:'フルボ酸（花ごころ）',c:'-',r:'250倍',crop:'全般'},
+    {n:'セルエナジー',c:'-',r:'1000倍',crop:'全般'},
+  ]
+};
+
+const 圃場L=['A畝','B畝','C畝','D畝','E畝','D畝E畝','全圃場','プランター','ハウス','果樹圃場','その他'];
+let rid=0;
+
+function gv(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+
+let currentTab='rec';
+
+function showTab(t){
+  currentTab=t;
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['rec','master','history','graph'][i]===t));
+  document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
+  document.getElementById('pane-'+t).classList.add('active');
+  document.getElementById('btm-subtabs-bar').classList.toggle('visible',t==='master');
+  document.getElementById('btm-histsubtabs-bar').classList.toggle('visible',t==='history');
+  document.querySelector('.btm-safe').style.background='var(--card)';
+  // ボタンの有効/無効
+  const canExport=t==='rec'||t==='history';
+  document.getElementById('btm-btn-trash').style.opacity=t==='rec'?'1':'0.35';
+  document.getElementById('btm-btn-csv').style.opacity=canExport?'1':'0.35';
+  document.getElementById('btm-btn-txt').style.opacity=canExport?'1':'0.35';
+  window.scrollTo(0,0);
+  if(t==='master')renderMasters();
+  if(t==='history')renderHistory();
+  if(t==='graph'){initGraph();}
+}
+
+function btmTrash(){if(currentTab==='rec')clearAll();}
+function btmCSV(){
+  if(currentTab==='rec')exportCSV();
+  else if(currentTab==='history')exportHistoryCSV();
+  else showToast('このタブはCSV出力に対応していません');
+}
+function btmText(){
+  if(currentTab==='rec')exportTxt();
+  else if(currentTab==='history')exportHistoryText();
+  else showToast('このタブはテキスト出力に対応していません');
+}
+
+function showMasterTab(key, btn){
+  ['hinmoku','hinshu','sagyou','drug'].forEach(k=>{
+    const sec=document.getElementById('msec-'+k);
+    if(sec) sec.style.display=k===key?'':'none';
+  });
+  document.querySelectorAll('.m-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+function renderMasters(){
+  const del  = (type,i)=>`<button class="del-m"  onclick="delM('${type}',${i})">🗑</button>`;
+  const edit = (type,i)=>`<button class="edit-m" onclick="editMaster('${type}',${i})">✏</button>`;
+  const sortBtn = (type)=>{const asc=_sortDir[type]!==false;return`<button class="sort-m" onclick="sortMaster('${type}')">${asc?'あ→ん':'ん→あ'}</button>`;};
+  const cnt = (label,type,n)=>`<div class="master-count">${label}<span>${n}件</span>${sortBtn(type)}</div>`;
+  document.getElementById('list-hinmoku').innerHTML=
+    cnt('品目','hinmoku',M.hinmoku.length)+
+    M.hinmoku.map((h,i)=>`<div class="master-item"><span class="name">${h}</span>${edit('hinmoku',i)}${del('hinmoku',i)}</div>`).join('');
+  const ref=document.getElementById('new-hinmoku-ref');
+  ref.innerHTML=M.hinmoku.map(h=>`<option>${h}</option>`).join('');
+  document.getElementById('list-hinshu').innerHTML=
+    cnt('品種','hinshu',M.hinshu.length)+
+    M.hinshu.map((h,i)=>`<div class="master-item"><span class="name">${h.n}</span><span class="tag">${h.h}</span>${edit('hinshu',i)}${del('hinshu',i)}</div>`).join('');
+  document.getElementById('list-sagyou').innerHTML=
+    cnt('作業内容','sagyou',M.sagyou.length)+
+    M.sagyou.map((s,i)=>`<div class="master-item"><span class="name">${s}</span>${edit('sagyou',i)}${del('sagyou',i)}</div>`).join('');
+  document.getElementById('list-drug').innerHTML=
+    cnt('使用薬剤','drug',M.drug.length)+
+    M.drug.map((d,i)=>`<div class="master-item"><span class="name">${d.n}<span class="sub">[${d.c}]${d.r?' '+d.r:''}</span></span><span class="tag">${d.crop||''}</span>${edit('drug',i)}${del('drug',i)}</div>`).join('');
+}
+const _sortDir={};
+function sortMaster(type){
+  _sortDir[type]=_sortDir[type]===false?true:false;
+  const asc=_sortDir[type]!==false;
+  const jc=(a,b)=>a.localeCompare(b,'ja',{numeric:true,sensitivity:'base'});
+  const cmp=(a,b)=>asc?jc(a,b):jc(b,a);
+  if(type==='hinmoku') M.hinmoku.sort(cmp);
+  else if(type==='hinshu') M.hinshu.sort((a,b)=>cmp(a.n,b.n));
+  else if(type==='sagyou') M.sagyou.sort(cmp);
+  else if(type==='drug') M.drug.sort((a,b)=>cmp(a.n,b.n));
+  saveMastersToDB(); renderMasters(); showToast(asc?'あ→ん 順':'ん→あ 順');
+}
+
+let _meditType=null, _meditIdx=null;
+function editMaster(type, i){
+  _meditType=type; _meditIdx=i;
+  const titles={hinmoku:'品目を編集',hinshu:'品種を編集',sagyou:'作業内容を編集',drug:'薬剤を編集'};
+  document.getElementById('medit-title').textContent=titles[type]||'編集';
+  let body='';
+  if(type==='hinmoku'){
+    body=`<div class="f"><label>品目名</label><input id="medit-1" value="${M.hinmoku[i]}"></div>`;
+  } else if(type==='hinshu'){
+    const h=M.hinshu[i];
+    const hopts=M.hinmoku.map(o=>`<option${o===h.h?' selected':''}>${o}</option>`).join('');
+    body=`<div class="f" style="margin-bottom:8px"><label>品目</label><select id="medit-0">${hopts}</select></div>
+          <div class="f"><label>品種名</label><input id="medit-1" value="${h.n}"></div>`;
+  } else if(type==='sagyou'){
+    body=`<div class="f"><label>作業内容</label><input id="medit-1" value="${M.sagyou[i]}"></div>`;
+  } else if(type==='drug'){
+    const d=M.drug[i];
+    body=`<div class="f" style="margin-bottom:8px"><label>薬剤名</label><input id="medit-1" value="${d.n}"></div>
+          <div class="g2" style="margin-bottom:8px">
+            <div class="f"><label>区分(i/f/h)</label><input id="medit-2" value="${d.c}" placeholder="i=殺虫 f=殺菌 h=除草"></div>
+            <div class="f"><label>希釈倍率</label><input id="medit-3" value="${d.r||''}"></div>
+          </div>
+          <div class="f"><label>対象作物</label><input id="medit-4" value="${d.crop||''}"></div>`;
+  }
+  document.getElementById('medit-body').innerHTML=body;
+  document.getElementById('master-edit-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('medit-1')?.focus(),100);
+}
+function saveMasterEdit(){
+  const type=_meditType, i=_meditIdx;
+  const gv=id=>(document.getElementById(id)?.value||'').trim();
+  if(type==='hinmoku') M.hinmoku[i]=gv('medit-1');
+  else if(type==='hinshu') M.hinshu[i]={h:gv('medit-0'),n:gv('medit-1')};
+  else if(type==='sagyou') M.sagyou[i]=gv('medit-1');
+  else if(type==='drug') M.drug[i]={n:gv('medit-1'),c:gv('medit-2'),r:gv('medit-3'),crop:gv('medit-4')};
+  document.getElementById('master-edit-modal').style.display='none';
+  saveMastersToDB(); renderMasters(); showToast('更新しました');
+}
+
+function addMaster(type){
+  if(type==='hinmoku'){const v=gv('new-hinmoku');if(!v)return;M.hinmoku.push(v);document.getElementById('new-hinmoku').value='';}
+  else if(type==='hinshu'){const n=gv('new-hinshu');const h=gv('new-hinmoku-ref');if(!n)return;M.hinshu.push({h,n});document.getElementById('new-hinshu').value='';}
+  else if(type==='sagyou'){const v=gv('new-sagyou');if(!v)return;M.sagyou.push(v);document.getElementById('new-sagyou').value='';}
+  saveMastersToDB();
+  renderMasters();showToast('追加しました');
+}
+function addDrug(){
+  const n=gv('new-drug-name'),c=gv('new-drug-code'),r=gv('new-drug-rate'),crop=gv('new-drug-crop');
+  if(!n||!c){showToast('薬剤名と区分コードは必須です');return;}
+  M.drug.push({n,c,r,crop});
+  ['new-drug-name','new-drug-code','new-drug-rate','new-drug-crop'].forEach(id=>document.getElementById(id).value='');
+  saveMastersToDB();
+  renderMasters();showToast('薬剤を登録しました');
+}
+function delM(type,i){M[type].splice(i,1);saveMastersToDB();renderMasters();}
+
+function addRow(){
+  // 1件のみ：既にフォームがあれば追加しない
+  if(document.querySelector('.row-card')){
+    document.querySelector('.row-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
+  document.getElementById('row-add-wrap').style.display='none';
+  const id=++rid;
+  const hopts=M.hinmoku.map(h=>`<option>${h}</option>`).join('');
+  const sopts=M.sagyou.map(s=>`<option>${s}</option>`).join('');
+  const dopts=M.drug.map(d=>`<option value="${d.n}">${d.n}[${d.c}]</option>`).join('');
+  const fopts=圃場L.map(o=>`<option>${o}</option>`).join('');
+  const recordId='rec_'+Date.now()+'_'+id;
+  const div=document.createElement('div');
+  div.className='row-card';div.id='rc-'+id;div.dataset.rid=recordId;
+  const sc=`scheduleRowSave(${id})`;
+  div.innerHTML=`
+    <div class="row-panel">
+      <button class="row-toggle" onclick="togRow(this)" type="button">
+        <span class="row-label">作業</span>
+        <span class="row-summary" id="rs-${id}">未入力</span>
+        <span class="row-arr">▼</span>
+      </button>
+      <div class="row-body">
+        <div class="g2">
+          <div class="f"><label>時刻</label><input type="time" id="tm-${id}" onchange="${sc}"></div>
+          <div class="f"><label>圃場</label><select id="fl-${id}" onchange="${sc}"><option value="">選択</option>${fopts}</select></div>
+        </div>
+        <div class="g2">
+          <div class="f"><label>品目</label><select id="it-${id}" onchange="updH(${id});${sc}"><option value="">選択</option>${hopts}</select></div>
+          <div class="f"><label>品種</label><select id="hs-${id}" onchange="${sc}"><option value="">選択</option></select></div>
+        </div>
+        <div class="g1">
+          <div class="f"><label>作業内容</label><select id="tp-${id}" onchange="${sc}"><option value="">選択</option>${sopts}</select></div>
+        </div>
+        <div class="g1">
+          <div class="f"><label>詳細・メモ</label><textarea id="ct-${id}" placeholder="数量・状態・気づきなど" oninput="${sc}" style="height:38px;line-height:1.4"></textarea></div>
+        </div>
+        <div class="g2">
+          <div class="f"><label>使用薬剤</label><select id="dr-${id}" onchange="${sc}"><option value="">なし</option>${dopts}</select></div>
+          <div class="f"><label>使用量・単位</label><input type="text" inputmode="decimal" id="qt-${id}" placeholder="例）5L" oninput="${sc}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="measure-panel">
+      <button class="measure-toggle" onclick="togM(this)" type="button">
+        📏 採寸・観察記録 <span class="arr">▼</span>
+      </button>
+      <div class="measure-body">
+        <div class="mg2">
+          <div class="mf"><label>草丈 (cm)</label><input type="number" step="0.1" id="gh-${id}" placeholder="例）25.5"><div class="u">cm</div></div>
+          <div class="mf"><label>茎径 (mm)</label><input type="number" step="0.1" id="gs-${id}" placeholder="例）8.2"><div class="u">mm</div></div>
+        </div>
+        <div class="mg2">
+          <div class="mf"><label>葉の数</label><input type="number" id="gl-${id}" placeholder="枚"><div class="u">枚</div></div>
+          <div class="mf"><label>花の数</label><input type="number" id="gf-${id}" placeholder="輪"><div class="u">輪</div></div>
+        </div>
+        <div class="mg2">
+          <div class="mf"><label>実の数</label><input type="number" id="gr-${id}" placeholder="個"><div class="u">個</div></div>
+          <div class="mf"><label>蕾の数</label><input type="number" id="gb-${id}" placeholder="個"><div class="u">個</div></div>
+        </div>
+        <div class="mg2">
+          <div class="mf"><label>果実サイズ</label><input type="text" inputmode="decimal" id="gz-${id}" placeholder="例）8×4cm"><div class="u">長さ×幅</div></div>
+          <div class="mf"><label>葉色スコア (1-5)</label><input type="number" min="1" max="5" id="gc-${id}" placeholder="1〜5"><div class="u">1=黄化 5=濃緑</div></div>
+        </div>
+        <div class="mg2" style="grid-template-columns:1fr">
+          <div class="mf"><label>観察メモ</label><input type="text" id="go-${id}" placeholder="活着・萎れ・虫害・病徴など"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row-photo-area">
+      <button class="row-photo-btn" type="button" onclick="addRowPhoto(${id},'${recordId}')">
+        📷 写真を追加 <span style="font-weight:400;color:#777;font-size:11px">複数・カメラ可</span>
+      </button>
+      <div id="rp-thumb-${id}" style="display:none" class="row-photo-thumbs"></div>
+    </div>
+    <button class="row-reg" onclick="registerRow(${id})" style="margin-top:10px">✓ この作業を登録</button>
+  `;
+  document.getElementById('rows-wrap').appendChild(div);
+  updateCount();
+  setTimeout(()=>div.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+}
+
+function updH(id){
+  const h=document.getElementById('it-'+id).value;
+  const sel=document.getElementById('hs-'+id);
+  sel.innerHTML='<option value="">選択</option>'+M.hinshu.filter(x=>x.h===h).map(x=>`<option>${x.n}</option>`).join('');
+}
+function delRow(id){
+  const div=document.getElementById('rc-'+id);
+  const rid=div?.dataset.rid;
+  if(rid&&db){db.transaction('records','readwrite').objectStore('records').delete(rid);}
+  div?.remove();
+  updateCount();
+  renumberRows();
+}
+function registerRow(id){
+  const div=document.getElementById('rc-'+id);
+  const recordId=div?.dataset.rid;
+  // まだ紐づいていない写真にrecIdを付与
+  if(recordId && typeof photos!=='undefined'){
+    photos.forEach(p=>{
+      if(!p.recId){
+        p.recId=recordId;
+        savePhotoToDB(p);
+      }
+    });
+  }
+  saveRowToHistory(id);
+  div?.remove();
+  updateCount();
+  showToast('登録しました');
+}
+
+function addRowPhoto(id, recordId){
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.multiple=true;
+  input.onchange=function(){
+    Array.from(this.files).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const pid=Date.now()+'_'+Math.floor(Math.random()*10000);
+        const label=gv('rec-date')||new Date().toISOString().slice(0,10);
+        const photo={id:pid,src:e.target.result,date:label,filename:file.name,recId:recordId};
+        photos.push(photo);
+        savePhotoToDB(photo);
+        renderRowPhotos(id,recordId);
+      };
+      reader.readAsDataURL(file);
+    });
+    input.value='';
+  };
+  input.click();
+}
+function renderRowPhotos(id,recordId){
+  const thumb=document.getElementById('rp-thumb-'+id);
+  if(!thumb)return;
+  const rp=photos.filter(p=>p.recId===recordId);
+  if(rp.length===0){thumb.style.display='none';thumb.innerHTML='';return;}
+  thumb.style.display='flex';
+  thumb.innerHTML=rp.map(p=>`<img src="${p.src}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;flex-shrink:0" loading="lazy">`).join('');
+}
+function updateCount(){
+  const n=document.querySelectorAll('.row-card').length;
+  const el=document.getElementById('row-count');
+  const addWrap=document.getElementById('row-add-wrap');
+  if(n>0){
+    el.style.display='flex';
+    document.getElementById('row-count-text').textContent=n+'件の作業を入力中';
+    if(addWrap) addWrap.style.display='none';
+  } else {
+    el.style.display='none';
+    if(addWrap) addWrap.style.display='';
+  }
+}
+function cancelCurrentRow(){
+  const card=document.querySelector('.row-card');
+  if(!card) return;
+  const id=card.id.replace('rc-','');
+  delRow(id);
+}
+function getRows(){
+  return Array.from(document.querySelectorAll('.row-card')).map(c=>{
+    const id=c.id.replace('rc-','');
+    return{time:gv('tm-'+id),field:gv('fl-'+id),item:gv('it-'+id),hinshu:gv('hs-'+id),type:gv('tp-'+id),content:gv('ct-'+id),drug:gv('dr-'+id),qty:gv('qt-'+id),height:gv('gh-'+id),stem:gv('gs-'+id),leaves:gv('gl-'+id),flowers:gv('gf-'+id),fruits:gv('gr-'+id),buds:gv('gb-'+id),fruitsize:gv('gz-'+id),leafcolor:gv('gc-'+id),obs:gv('go-'+id)};
+  });
+}
+
+let photos = [];
+let lbIdx = 0;
+let db = null;
+
+function initDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open('FarmAppDB',3);
+    req.onupgradeneeded = e=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('photos'))
+        d.createObjectStore('photos',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('records'))
+        d.createObjectStore('records',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('masters'))
+        d.createObjectStore('masters',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('temps'))
+        d.createObjectStore('temps',{keyPath:'date'});
+    };
+    req.onsuccess = e=>{db=e.target.result;resolve(db);};
+    req.onerror = ()=>reject(req.error);
+  });
+}
+
+function savePhotoToDB(photo){
+  if(!db) return;
+  const tx = db.transaction('photos','readwrite');
+  tx.objectStore('photos').put(photo);
+}
+
+function delPhotoFromDB(id){
+  if(!db) return;
+  const tx = db.transaction('photos','readwrite');
+  tx.objectStore('photos').delete(id);
+}
+
+function loadPhotosFromDB(){
+  if(!db) return Promise.resolve([]);
+  return new Promise(resolve=>{
+    const tx = db.transaction('photos','readonly');
+    const req = tx.objectStore('photos').getAll();
+    req.onsuccess = ()=>resolve(req.result||[]);
+    req.onerror = ()=>resolve([]);
+  });
+}
+
+function addPhotos(input){
+  const files = Array.from(input.files);
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const id = Date.now() + '_' + Math.floor(Math.random()*10000);
+      const label = gv('rec-date') || new Date().toISOString().slice(0,10);
+      const photo = {id, src:e.target.result, date:label, filename:file.name};
+      photos.push(photo);
+      savePhotoToDB(photo);
+      renderPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+function renderPhotos(){
+  const grid = document.getElementById('photo-grid');
+  if(!grid) return;
+  const sorted = [...photos].sort((a,b)=>a.date>b.date?-1:1);
+  grid.innerHTML = sorted.map((p,i)=>`
+    <div class="photo-thumb" onclick="openLbById('${p.id}')">
+      <img src="${p.src}" alt="作業写真" loading="lazy">
+      <button class="del-photo" onclick="event.stopPropagation();delPhotoById('${p.id}')">×</button>
+      <div class="photo-date">${p.date}</div>
+    </div>`).join('');
+  const cnt = document.getElementById('photo-count');
+  if(cnt) cnt.textContent = photos.length > 0 ? `${photos.length}枚（端末内保存）` : '';
+}
+
+function delPhotoById(id){
+  if(!confirm('この写真を削除しますか？')) return;
+  delPhotoFromDB(id);
+  photos = photos.filter(p=>p.id!==id);
+  renderPhotos();
+}
+
+function openLbById(id){
+  const sorted = [...photos].sort((a,b)=>a.date>b.date?-1:1);
+  const i = sorted.findIndex(p=>p.id===id);
+  if(i>=0) openLb(i,sorted);
+}
+
+function delPhoto(i){
+  if(!confirm('この写真を削除しますか？')) return;
+  const photo = photos[i];
+  if(photo) delPhotoFromDB(photo.id);
+  photos.splice(i,1);
+  renderPhotos();
+}
+
+let lbPhotos = [];
+function openLb(i, arr){
+  lbPhotos = arr || [...photos].sort((a,b)=>a.date>b.date?-1:1);
+  lbIdx = i;
+  showLb();
+}
+
+function showLb(){
+  document.getElementById('lightbox')?.remove();
+  const p = lbPhotos[lbIdx];
+  if(!p) return;
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.id = 'lightbox';
+  lb.innerHTML = `
+    <button class="lb-close" onclick="closeLb()">×</button>
+    <img src="${p.src}" alt="写真">
+    <div class="lb-info">${p.date}　${lbIdx+1} / ${lbPhotos.length}枚</div>
+    <div class="lb-nav">
+      <button onclick="navLb(-1)">◀ 前</button>
+      <button onclick="navLb(1)">次 ▶</button>
+    </div>`;
+  document.body.appendChild(lb);
+}
+
+function navLb(dir){
+  lbIdx = (lbIdx + dir + lbPhotos.length) % lbPhotos.length;
+  showLb();
+}
+
+function closeLb(){
+  document.getElementById('lightbox')?.remove();
+}
+
+// CSVエクスポートに写真枚数を追加
+const _origExportCSV = exportCSV;
+
+function exportCSV(){
+  const dt=gv('rec-date')||'未設定';
+  let csv='\uFEFF農作業記録\n';
+  csv+=`記録日,${dt},天候,${gv('weather')},気温,${gv('temp')},湿度,${gv('humid')},記録者,${gv('recorder')}\n\n`;
+  csv+='時刻,圃場,品目,品種,作業内容,詳細,使用薬剤,使用量,草丈(cm),茎径(mm),葉数,花数,実数,蕾数,果実サイズ,葉色,観察メモ\n';
+  getRows().forEach(r=>csv+=`${r.time},${r.field},${r.item},${r.hinshu},${r.type},"${r.content}",${r.drug},${r.qty},${r.height},${r.stem},${r.leaves},${r.flowers},${r.fruits},${r.buds},${r.fruitsize},${r.leafcolor},"${r.obs}"\n`);
+  const notes=gv('notes');if(notes)csv+=`\n特記事項\n"${notes}"\n`;
+  if(photos.length>0) csv+=`\n写真記録,${photos.length}枚\n`;
+  dl(csv,'text/csv','農作業記録_'+dt+'.csv');showToast('CSV出力完了');
+}
+function exportTxt(){
+  const dt=gv('rec-date')||'未設定';
+  let t='═══════════════════════\n農作業記録　'+dt+'\n═══════════════════════\n';
+  t+=`天候：${gv('weather')}　気温：${gv('temp')}℃　湿度：${gv('humid')}%\n記録者：${gv('recorder')}\n\n【作業内容】\n`;
+  getRows().forEach((r,i)=>{
+    t+=`${i+1}. [${r.time||'--:--'}] ${r.field} / ${r.item}${r.hinshu?' ('+r.hinshu+')':''}\n`;
+    t+=`   作業：${r.type}\n`;
+    if(r.content)t+=`   詳細：${r.content}\n`;
+    if(r.drug)t+=`   薬剤：${r.drug}　${r.qty}\n`;
+    const ms=[];
+    if(r.height)ms.push(`草丈${r.height}cm`);
+    if(r.stem)ms.push(`茎径${r.stem}mm`);
+    if(r.leaves)ms.push(`葉${r.leaves}枚`);
+    if(r.flowers)ms.push(`花${r.flowers}輪`);
+    if(r.fruits)ms.push(`実${r.fruits}個`);
+    if(r.buds)ms.push(`蕾${r.buds}個`);
+    if(r.fruitsize)ms.push(`果実${r.fruitsize}cm`);
+    if(r.leafcolor)ms.push(`葉色スコア${r.leafcolor}`);
+    if(ms.length)t+=`   採寸：${ms.join('　')}\n`;
+    if(r.obs)t+=`   観察：${r.obs}\n`;
+    t+='\n';
+  });
+  const notes=gv('notes');if(notes)t+=`【特記事項】\n${notes}\n`;
+  dl(t,'text/plain','農作業記録_'+dt+'.txt');showToast('テキスト出力完了');
+}
+function dl(content,type,filename){
+  const b=new Blob([content],{type:type+';charset=utf-8'});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=filename;a.click();URL.revokeObjectURL(u);
+}
+function exportHistoryCSV(){
+  if(!_lastHistRecs.length){showToast('データがありません');return;}
+  const m=document.getElementById('hist-month').value||'全期間';
+  let csv='﻿農作業履歴\n日付,時刻,圃場,品目,品種,作業,内容,薬剤,使用量,草丈(cm),茎径(mm),葉数,花数,実数,蕾数,果実サイズ,葉色,観察メモ\n';
+  _lastHistRecs.forEach(r=>{
+    csv+=`"${r.date||''}","${r.time||''}","${r.field||''}","${r.item||''}","${r.hinshu||''}","${r.type||''}","${r.content||''}","${r.drug||''}","${r.qty||''}","${r.height||''}","${r.stem||''}","${r.leaves||''}","${r.flowers||''}","${r.fruits||''}","${r.buds||''}","${r.fruitsize||''}","${r.leafcolor||''}","${r.obs||''}"\n`;
+  });
+  dl(csv,'text/csv','農作業履歴_'+m+'.csv');showToast('CSV出力完了');
+}
+function exportHistoryText(){
+  if(!_lastHistRecs.length){showToast('データがありません');return;}
+  const m=document.getElementById('hist-month').value||'全期間';
+  const groups={};
+  _lastHistRecs.forEach(r=>{const d=r.date||'不明';if(!groups[d])groups[d]=[];groups[d].push(r);});
+  let t='═══════════════════════\n農作業履歴　'+m+'\n═══════════════════════\n\n';
+  Object.keys(groups).sort((a,b)=>a<b?1:-1).forEach(date=>{
+    t+=`【${date}】\n`;
+    groups[date].forEach((r,i)=>{
+      t+=`${i+1}. [${r.time||'--:--'}] ${r.field||''} / ${r.item||''}${r.hinshu?' ('+r.hinshu+')':''}\n`;
+      t+=`   作業：${r.type||''}\n`;
+      if(r.content)t+=`   詳細：${r.content}\n`;
+      if(r.drug)t+=`   薬剤：${r.drug}　${r.qty||''}\n`;
+      const ms=[];
+      if(r.height)ms.push(`草丈${r.height}cm`);
+      if(r.stem)ms.push(`茎径${r.stem}mm`);
+      if(r.leaves)ms.push(`葉${r.leaves}枚`);
+      if(r.flowers)ms.push(`花${r.flowers}輪`);
+      if(r.fruits)ms.push(`実${r.fruits}個`);
+      if(r.buds)ms.push(`蕾${r.buds}個`);
+      if(r.fruitsize)ms.push(`果実${r.fruitsize}`);
+      if(r.leafcolor)ms.push(`葉色スコア${r.leafcolor}`);
+      if(ms.length)t+=`   採寸：${ms.join('　')}\n`;
+      if(r.obs)t+=`   観察：${r.obs}\n`;
+      t+='\n';
+    });
+  });
+  dl(t,'text/plain','農作業履歴_'+m+'.txt');showToast('テキスト出力完了');
+}
+
+function clearAll(){
+  const card=document.querySelector('.row-card');
+  if(!card){showToast('入力中の作業がありません');return;}
+  if(!confirm('入力中の作業内容をクリアしますか？'))return;
+  card.querySelectorAll('input,select,textarea').forEach(el=>{
+    if(el.tagName==='SELECT') el.selectedIndex=0;
+    else el.value='';
+  });
+  showToast('クリアしました');
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// スワイプでタブ切替
+(function(){
+  const TAB_ORDER=['rec','master','history','graph'];
+  let sx=0,sy=0;
+  document.addEventListener('touchstart',e=>{
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    const dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.5)return;
+    if(e.target.closest('#chart-scroll,.modal-bg,.modal-overlay'))return;
+    const idx=TAB_ORDER.indexOf(currentTab);
+    if(dx<0&&idx<TAB_ORDER.length-1)showTab(TAB_ORDER[idx+1]);
+    else if(dx>0&&idx>0)showTab(TAB_ORDER[idx-1]);
+  },{passive:true});
+})();
+
+// 湿度自動取得（気象庁 茨城県 水戸）+ IndexedDBから湿度補完
+async function fetchWeather(){
+  const humidEl=document.getElementById('humid');
+  const statusEl=document.getElementById('humid-status');
+  const lblEl=document.getElementById('humid-lbl');
+  try{
+    const res=await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/080000.json');
+    if(!res.ok)throw new Error('fetch failed');
+    const data=await res.json();
+    const areas=data[0]?.timeSeries?.[2]?.areas||[];
+    const mito=areas.find(a=>a.area?.name?.includes('水戸')||a.area?.code==='44132');
+    if(mito?.temps?.length>=2){
+      const max=mito.temps[1],min=mito.temps[0];
+      document.getElementById('temp').value=`${max}/${min}`;
+      lblEl.textContent=`水戸 ${max}℃/${min}℃`;
+    }else{
+      throw new Error('no data');
+    }
+  }catch(e){}
+  // IndexedDBから最新の湿度を補完
+  try{
+    const saved=await loadTempsFromDB();
+    const withH=saved.filter(t=>t.humidMax!=null).sort((a,b)=>b.date.localeCompare(a.date));
+    if(withH.length>0){
+      const r=withH[0];
+      humidEl.value=`${r.humidMax}/${r.humidMin}`;
+      statusEl.textContent=`湿度: ${r.date} (Open-Meteo)`;
+      statusEl.className='hint ok';
+    }else{
+      humidEl.placeholder='手動入力';
+      statusEl.textContent='手動で入力してください';
+      statusEl.className='hint';
+    }
+  }catch(e){
+    humidEl.placeholder='手動入力';
+  }
+}
+
+const now=new Date();
+document.getElementById('rec-date').value=now.toISOString().slice(0,10);
+document.getElementById('today-lbl').textContent=now.toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
+initDB().then(()=>{
+  loadPhotosFromDB().then(saved=>{photos=saved;renderPhotos();});
+  seedInitialRecords();
+  loadMastersFromDB().then(saved=>{
+    if(saved && Object.keys(saved).length > 0){
+      if(saved.hinmoku && saved.hinmoku.length > 0) M.hinmoku = saved.hinmoku;
+      if(saved.hinshu  && saved.hinshu.length  > 0) M.hinshu  = saved.hinshu;
+      if(saved.sagyou  && saved.sagyou.length  > 0) M.sagyou  = saved.sagyou;
+      if(saved.drug    && saved.drug.length    > 0) M.drug    = saved.drug;
+    }
+    renderMasters();
+  });
+  // 起動時に気温データを自動更新（保存済みデータがある場合のみ）
+  setTimeout(()=>fetchLatestMonthIfNeeded(), 3000);
+});
+const nowM = new Date();
+document.getElementById('hist-month').value = nowM.toISOString().slice(0,7);
+fetchWeather();
+
+const INITIAL_RECORDS = [{"date": "2026-03-17", "field": "B畝", "item": "ネギ", "hinshu": "大河の轟き", "type": "定植", "content": "セル播種苗", "drug": "", "qty": ""}, {"date": "2026-04-05", "field": "全圃場", "item": "全般", "hinshu": "", "type": "土づくり", "content": "バーク堆肥・くん炭・パームカリ・石膏", "drug": "各資材", "qty": "一式"}, {"date": "2026-04-05", "field": "ABC畝", "item": "全般", "hinshu": "", "type": "散布", "content": "フルボ酸灌水", "drug": "フルボ酸（花ごころ）", "qty": "250倍"}, {"date": "2026-04-05", "field": "ABC畝", "item": "全般", "hinshu": "", "type": "散布", "content": "セルエナジー", "drug": "セルエナジー", "qty": "1000倍"}, {"date": "2026-04-19", "field": "ABC畝", "item": "全般", "hinshu": "", "type": "散布", "content": "フルボ酸灌水5L", "drug": "フルボ酸（花ごころ）", "qty": "250倍"}, {"date": "2026-04-22", "field": "C畝", "item": "ナス", "hinshu": "式部", "type": "定植", "content": "3本", "drug": "IB化成・8-8-8", "qty": "極小量"}, {"date": "2026-04-22", "field": "C畝", "item": "ナス", "hinshu": "PC鶴丸", "type": "定植", "content": "3本", "drug": "IB化成・8-8-8", "qty": "極小量"}, {"date": "2026-04-22", "field": "C畝", "item": "ナス", "hinshu": "あのみのり", "type": "定植", "content": "3本", "drug": "IB化成・8-8-8", "qty": "極小量"}, {"date": "2026-04-29", "field": "ハウス", "item": "カボチャ", "hinshu": "恋するマロン", "type": "播種", "content": "10粒", "drug": "", "qty": ""}, {"date": "2026-05-03", "field": "D畝", "item": "全般", "hinshu": "", "type": "施肥・畝形成", "content": "N33-P3-K3・くん炭", "drug": "緩効性化成・くん炭", "qty": "100g・50g"}, {"date": "2026-05-03", "field": "E畝", "item": "全般", "hinshu": "", "type": "施肥・畝形成", "content": "N18-P13-K12-Mg4・くん炭", "drug": "緩効性化成・くん炭", "qty": "100g・50g"}, {"date": "2026-05-04", "field": "A畝", "item": "スナップエンドウ", "hinshu": "", "type": "定植", "content": "マルチ張り+定植 9箇所", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "D畝", "item": "ナス", "hinshu": "PC筑陽（接木）", "type": "定植", "content": "2本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "D畝", "item": "ナス", "hinshu": "PC筑陽（自根）", "type": "定植", "content": "2本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "D畝", "item": "ししぴー", "hinshu": "サカタ ししぴー", "type": "定植", "content": "4本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "D畝", "item": "カラーピーマン", "hinshu": "フルーピーイエロー", "type": "定植", "content": "1本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "E畝", "item": "ナス", "hinshu": "PC筑陽（接木）", "type": "定植", "content": "2本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "E畝", "item": "ナス", "hinshu": "PC筑陽（自根）", "type": "定植", "content": "2本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "E畝", "item": "ししぴー", "hinshu": "サカタ ししぴー", "type": "定植", "content": "3本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "E畝", "item": "カラーピーマン", "hinshu": "フルーピーイエロー", "type": "定植", "content": "2本", "drug": "", "qty": ""}, {"date": "2026-05-05", "field": "DE畝", "item": "全般", "hinshu": "", "type": "散布", "content": "定植直後フルボ酸灌水", "drug": "フルボ酸（花ごころ）", "qty": "250倍"}, {"date": "2026-05-09", "field": "ハウス", "item": "カボチャ", "hinshu": "恋するマロン", "type": "鉢上げ", "content": "9cmポット", "drug": "", "qty": ""}, {"date": "2026-05-09", "field": "プランター", "item": "小松菜(はまつづき)", "hinshu": "はまつづき", "type": "播種", "content": "直播", "drug": "", "qty": ""}, {"date": "2026-05-09", "field": "プランター", "item": "小松菜(さくらぎ)", "hinshu": "さくらぎ", "type": "播種", "content": "直播", "drug": "", "qty": ""}];
+
+
+function saveMastersToDB(){
+  if(!db) return;
+  const tx = db.transaction('masters','readwrite');
+  const store = tx.objectStore('masters');
+  store.put({key:'hinmoku', data:M.hinmoku});
+  store.put({key:'hinshu',  data:M.hinshu});
+  store.put({key:'sagyou',  data:M.sagyou});
+  store.put({key:'drug',    data:M.drug});
+}
+
+function loadMastersFromDB(){
+  if(!db) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    const tx = db.transaction('masters','readonly');
+    const store = tx.objectStore('masters');
+    const result = {};
+    let count = 0;
+    const keys = ['hinmoku','hinshu','sagyou','drug'];
+    keys.forEach(k=>{
+      const req = store.get(k);
+      req.onsuccess = ()=>{
+        if(req.result) result[k] = req.result.data;
+        count++;
+        if(count===keys.length) resolve(result);
+      };
+      req.onerror = ()=>{count++;if(count===keys.length)resolve(result);};
+    });
+  });
+}
+
+
+// ============================================================
+// 気温データ管理（IndexedDB）
+// ============================================================
+function saveTempsToDB(temps){
+  if(!db) return Promise.resolve();
+  return new Promise(resolve=>{
+    const tx = db.transaction('temps','readwrite');
+    const store = tx.objectStore('temps');
+    temps.forEach(t=>store.put(t));
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>resolve();
+  });
+}
+
+function loadTempsFromDB(){
+  if(!db) return Promise.resolve([]);
+  return new Promise(resolve=>{
+    const tx = db.transaction('temps','readonly');
+    const req = tx.objectStore('temps').getAll();
+    req.onsuccess = ()=>resolve(req.result||[]);
+    req.onerror = ()=>resolve([]);
+  });
+}
+
+// 気象庁 水戸（prec_no=40, block_no=47629）の過去データを取得
+// URL: https://www.data.jma.go.jp/stats/etrn/view/daily_s1.php?prec_no=40&block_no=47629&year=YYYY&month=MM
+// Open-Meteo API（無料・CORS対応・古河近辺 緯度36.2 経度139.7）
+async function fetchJMAMonthly(year, month){
+  // 月の開始・終了日
+  const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const today = new Date().toISOString().slice(0,10);
+  const actualEnd = endDate > today ? today : endDate;
+  
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=36.2&longitude=139.7&start_date=${startDate}&end_date=${actualEnd}&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return [];
+    const data = await res.json();
+    const dates = data.daily?.time || [];
+    const maxTemps = data.daily?.temperature_2m_max || [];
+    const minTemps = data.daily?.temperature_2m_min || [];
+    const temps = [];
+    dates.forEach((date,i)=>{
+      const mx = maxTemps[i], mn = minTemps[i];
+      if(mx !== null && mn !== null && !isNaN(mx) && !isNaN(mn)){
+        temps.push({date, max:Math.round(mx*10)/10, min:Math.round(mn*10)/10, src:'open-meteo'});
+      }
+    });
+    return temps;
+  }catch(e){
+    console.error('fetchJMAMonthly error:', e);
+    return [];
+  }
+}
+
+async function fetchAllHistoricalTemps(onProgress, startYear=2024, startMonth=1){
+  if(onProgress) onProgress(1, 1, '2024年1月〜現在');
+  const startDate = `${startYear}-${String(startMonth).padStart(2,'0')}-01`;
+  const today = new Date().toISOString().slice(0,10);
+  const url = 'https://archive-api.open-meteo.com/v1/archive?latitude=36.2&longitude=139.7'
+    + '&start_date=' + startDate + '&end_date=' + today
+    + '&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min'
+    + '&timezone=Asia%2FTokyo';
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const dates = data.daily?.time || [];
+    const maxTemps = data.daily?.temperature_2m_max || [];
+    const minTemps = data.daily?.temperature_2m_min || [];
+    const maxHumid = data.daily?.relative_humidity_2m_max || [];
+    const minHumid = data.daily?.relative_humidity_2m_min || [];
+    const all = [];
+    dates.forEach((date,i)=>{
+      const mx=maxTemps[i], mn=minTemps[i];
+      const hx=maxHumid[i], hn=minHumid[i];
+      if(mx!==null&&mn!==null&&!isNaN(mx)&&!isNaN(mn)){
+        all.push({
+          date, max:Math.round(mx*10)/10, min:Math.round(mn*10)/10,
+          humidMax: hx!==null&&!isNaN(hx)?Math.round(hx):null,
+          humidMin: hn!==null&&!isNaN(hn)?Math.round(hn):null,
+          src:'open-meteo'
+        });
+      }
+    });
+    if(onProgress) onProgress(1,1,'完了');
+    return all;
+  }catch(e){
+    console.error('fetchAllHistoricalTemps error:', e);
+    return [];
+  }
+}
+
+async function fetchLatestMonthIfNeeded(){
+  if(!db) return;
+  const saved = await loadTempsFromDB();
+  if(saved.length===0) return;
+  const today = new Date().toISOString().slice(0,10);
+  const latestDate = saved.sort((a,b)=>a.date>b.date?-1:1)[0]?.date;
+  if(latestDate>=today) return;
+  // 差分のみ取得
+  const nextDay = new Date(latestDate);
+  nextDay.setDate(nextDay.getDate()+1);
+  const startDate = nextDay.toISOString().slice(0,10);
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=36.2&longitude=139.7&start_date=${startDate}&end_date=${today}&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const data = await res.json();
+    const dates=data.daily?.time||[];
+    const maxTemps=data.daily?.temperature_2m_max||[];
+    const minTemps=data.daily?.temperature_2m_min||[];
+    const newData=[];
+    dates.forEach((date,i)=>{
+      const mx=maxTemps[i],mn=minTemps[i];
+      if(mx!==null&&mn!==null&&!isNaN(mx)&&!isNaN(mn))
+        newData.push({date,max:Math.round(mx*10)/10,min:Math.round(mn*10)/10,src:'open-meteo'});
+    });
+    if(newData.length>0){await saveTempsToDB(newData);console.log('自動更新:',newData.length+'日分');}
+  }catch(e){}
+}
+
+function seedInitialRecords(){
+  if(!db) return;
+  const tx = db.transaction('records','readwrite');
+  const store = tx.objectStore('records');
+  const countReq = store.count();
+  countReq.onsuccess = ()=>{
+    if(countReq.result > 0) return;
+    INITIAL_RECORDS.forEach((r,i)=>{
+      store.put({...r, id:'init_'+i, time:''});
+    });
+  };
+}
+
+const _saveTimers={};
+function scheduleRowSave(id){
+  clearTimeout(_saveTimers[id]);
+  updateRowSummary(id);
+  _saveTimers[id]=setTimeout(()=>saveRowToHistory(id),600);
+}
+function saveRowToHistory(id){
+  const div=document.getElementById('rc-'+id);
+  const rid=div?.dataset.rid;
+  if(!rid||!db)return;
+  const row={
+    id:rid,
+    date:gv('rec-date')||new Date().toISOString().slice(0,10),
+    recorder:gv('recorder'),
+    weather:gv('weather'),temp:gv('temp'),humid:gv('humid'),
+    time:gv('tm-'+id),field:gv('fl-'+id),
+    item:gv('it-'+id),hinshu:gv('hs-'+id),
+    type:gv('tp-'+id),content:gv('ct-'+id),
+    drug:gv('dr-'+id),qty:gv('qt-'+id),
+    height:gv('gh-'+id),stem:gv('gs-'+id),
+    leaves:gv('gl-'+id),flowers:gv('gf-'+id),
+    fruits:gv('gr-'+id),buds:gv('gb-'+id),
+    fruitsize:gv('gz-'+id),leafcolor:gv('gc-'+id),
+    obs:gv('go-'+id),
+  };
+  if(!row.item&&!row.type)return;
+  saveRecord(row);
+}
+
+function saveRecord(rec){
+  if(!db) return;
+  const tx = db.transaction('records','readwrite');
+  tx.objectStore('records').put(rec);
+}
+
+function loadAllRecords(){
+  if(!db) return Promise.resolve([]);
+  return new Promise(resolve=>{
+    const tx = db.transaction('records','readonly');
+    const req = tx.objectStore('records').getAll();
+    req.onsuccess = ()=>resolve(req.result||[]);
+    req.onerror = ()=>resolve([]);
+  });
+}
+
+// ── 市場価格ウィジェット ──────────────────────────────────
+const PRICE_CROPS=[
+  {key:'rice',  name:'米',         emoji:'🌾',bg:'#1565C0',unit:'円/俵'},
+  {key:'negi',  name:'ネギ',       emoji:'🧅',bg:'#558B2F',unit:'円/kg'},
+  {key:'nasu',  name:'ナス',       emoji:'🍆',bg:'#6A1B9A',unit:'円/kg'},
+  {key:'piman', name:'ピーマン',   emoji:'🫑',bg:'#1B5E20',unit:'円/kg'},
+  {key:'tomato',name:'トマト',     emoji:'🍅',bg:'#B71C1C',unit:'円/kg'},
+  {key:'kyabe', name:'キャベツ',   emoji:'🥬',bg:'#2E7D32',unit:'円/kg'},
+  {key:'daiko', name:'だいこん',   emoji:'🤍',bg:'#546E7A',unit:'円/kg'},
+  {key:'kyuri', name:'きゅうり',   emoji:'🥒',bg:'#33691E',unit:'円/kg'},
+  {key:'houre', name:'ほうれん草', emoji:'🌿',bg:'#388E3C',unit:'円/kg'},
+  {key:'broc',  name:'ブロッコリー',emoji:'🥦',bg:'#004D40',unit:'円/kg'},
+  {key:'budo',  name:'ブドウ',      emoji:'🍇',bg:'#6A1B9A',unit:'円/kg'},
+  {key:'nashi', name:'梨',          emoji:'🍐',bg:'#827717',unit:'円/kg'},
+  {key:'kiwi',  name:'キウイ',      emoji:'🥝',bg:'#33691E',unit:'円/kg'},
+  {key:'citrus',name:'柑橘',        emoji:'🍊',bg:'#E65100',unit:'円/kg'},
+];
+// 東京都中央卸売市場 令和8年5月14日データ（野菜）＋果物旬価格（農水省令和7年月別データ）
+const PRICE_REF={rice:32000,negi:428,nasu:442,piman:581,tomato:393,kyabe:111,daiko:106,kyuri:311,houre:460,broc:638,budo:1595,nashi:470,kiwi:548,citrus:333};
+const PRICE_REF_DATE='5/14';
+const PRICE_REF_DATES={budo:'8/1',nashi:'9/1',kiwi:'11/1',citrus:'12/1'};
+let priceCache={};
+
+function renderPriceTicker(){
+  const grid=document.getElementById('price-grid');
+  if(!grid)return;
+  const dates=Object.values(priceCache).map(v=>v.date).filter(Boolean);
+  const headerDate=dates.length?dates[0]+'時点':'参考値';
+  const hts=document.getElementById('price-header-ts');
+  if(hts)hts.textContent=headerDate;
+  grid.innerHTML=PRICE_CROPS.map(c=>{
+    const d=priceCache[c.key]||{};
+    const price=d.price??PRICE_REF[c.key];
+    const change=d.change??0;
+    const date=d.date||'参考値';
+    return `<div class="price-cell" onclick="editPrice('${c.key}')">
+      <div class="price-cell-top">
+        <span class="price-icon" style="background:${c.bg}">${c.emoji}</span>
+        <span class="price-name">${c.name}</span>
+        <span class="price-date-top">${date||''}</span>
+      </div>
+      <div class="price-value">${price.toLocaleString()}<span class="price-unit">${c.unit}</span></div>
+    </div>`;
+  }).join('');
+}
+
+async function refreshPrices(){
+  const appId=localStorage.getItem('estat_appid');
+  if(!appId){showToast('e-Stat APIキーを設定してください');showEstatSetup();return;}
+  const tsEl=document.getElementById('price-ts');
+  if(tsEl)tsEl.textContent='取得中...';
+  try{
+    // 農業物価統計（農産物価格）を検索
+    const listUrl=`https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${encodeURIComponent(appId)}&lang=J&searchWord=${encodeURIComponent('農業物価統計 農産物価格 野菜')}&searchKind=1&limit=10`;
+    const listRes=await fetch(listUrl);
+    if(!listRes.ok)throw new Error(`${listRes.status}`);
+    const listJson=await listRes.json();
+    const tables=listJson.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
+    if(!tables){if(tsEl)tsEl.textContent='データなし';return;}
+    const list=Array.isArray(tables)?tables:[tables];
+    // 最新の確報を選ぶ
+    const target=list.find(t=>t.TITLE?.includes('農産物価格'))||list[0];
+    const statsDataId=target?.['@id'];
+    if(!statsDataId){if(tsEl)tsEl.textContent='IDなし';return;}
+
+    // 価格データ取得
+    const dataUrl=`https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${encodeURIComponent(appId)}&statsDataId=${statsDataId}&metaGetFlg=Y&cntGetFlg=N&limit=500`;
+    const dataRes=await fetch(dataUrl);
+    if(!dataRes.ok)throw new Error(`${dataRes.status}`);
+    const dataJson=await dataRes.json();
+    const values=dataJson.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+    const classObjs=dataJson.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
+    if(!values||!classObjs){if(tsEl)tsEl.textContent='解析失敗';return;}
+
+    // 品目クラスを探す
+    const classArr=Array.isArray(classObjs)?classObjs:[classObjs];
+    const itemClass=classArr.find(c=>['品目','品名','農産物'].some(w=>c['@name']?.includes(w)));
+    const itemMap={};
+    if(itemClass){
+      const items=Array.isArray(itemClass.CLASS)?itemClass.CLASS:[itemClass.CLASS];
+      items.forEach(i=>{itemMap[i['@code']]=i['@name'];});
+    }
+
+    // 品目名→cropKeyのマッピング
+    const nameToKey={
+      'ねぎ':'negi','ネギ':'negi','葱':'negi',
+      'なす':'nasu','ナス':'nasu','茄子':'nasu',
+      'ピーマン':'piman','ぴーまん':'piman',
+      'トマト':'tomato','とまと':'tomato',
+      'キャベツ':'kyabe','きゃべつ':'kyabe','甘藍':'kyabe',
+      'だいこん':'daiko','大根':'daiko','ダイコン':'daiko',
+      'きゅうり':'kyuri','キュウリ':'kyuri','胡瓜':'kyuri',
+      'ほうれんそう':'houre','ほうれん草':'houre','ホウレンソウ':'houre',
+      'ブロッコリー':'broc','ぶろっこりー':'broc',
+      '玄米':'rice','精米':'rice','米':'rice',
+    };
+
+    // 最新時点のデータを抽出
+    const vals=Array.isArray(values)?values:[values];
+    const latestByKey={};
+    vals.forEach(v=>{
+      const code=v['@cat01']||v['@area']||'';
+      const name=itemMap[code]||'';
+      const key=nameToKey[name]||Object.keys(nameToKey).find(n=>name.includes(n)?nameToKey[n]:null);
+      if(!key)return;
+      const cropKey=typeof key==='string'?nameToKey[key]||key:key;
+      const price=parseFloat(v['$']);
+      if(isNaN(price))return;
+      const time=v['@time']||'';
+      if(!latestByKey[cropKey]||time>latestByKey[cropKey].time)
+        latestByKey[cropKey]={price,time};
+    });
+
+    // priceCache更新
+    const now=new Date();
+    const dateStr=`${now.getMonth()+1}/${now.getDate()}`;
+    Object.entries(latestByKey).forEach(([k,{price,time}])=>{
+      const prev=priceCache[k]?.price;
+      priceCache[k]={price,change:prev?Math.round(price-prev):0,date:dateStr};
+    });
+    localStorage.setItem('farmapp_price_cache',JSON.stringify({data:priceCache,ts:Date.now(),statsDataId}));
+    renderPriceTicker();
+    if(tsEl)tsEl.textContent=`更新: ${dateStr} (e-Stat)`;
+    showToast('価格データを更新しました');
+  }catch(e){
+    console.error('e-Stat error:',e);
+    if(tsEl)tsEl.textContent='取得失敗 – 参考値を表示中';
+    showToast('取得失敗: '+e.message);
+  }
+}
+
+function editPrice(key){
+  const crop=PRICE_CROPS.find(c=>c.key===key);
+  const cur=priceCache[key]||{};
+  document.getElementById('pedit-title').textContent=`${crop?.emoji||''} ${crop?.name} (${crop?.unit})`;
+  document.getElementById('pedit-price').value=cur.price??PRICE_REF[key];
+  document.getElementById('pedit-date').value=cur.date||'';
+  document.getElementById('pedit-key').value=key;
+  document.getElementById('price-edit-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('pedit-price')?.focus(),100);
+}
+function savePriceEdit(){
+  const key=document.getElementById('pedit-key').value;
+  const p=parseInt(document.getElementById('pedit-price').value.replace(/,/g,''));
+  const d=document.getElementById('pedit-date').value.trim();
+  if(isNaN(p))return;
+  const prev=priceCache[key]?.price;
+  priceCache[key]={price:p,change:prev&&prev!==p?p-prev:priceCache[key]?.change||0,date:d};
+  localStorage.setItem('farmapp_price_cache',JSON.stringify({data:priceCache,ts:Date.now()}));
+  document.getElementById('price-edit-modal').style.display='none';
+  renderPriceTicker();
+  const tsEl=document.getElementById('price-ts');
+  if(tsEl)tsEl.textContent='手動更新';
+}
+
+function showEstatSetup(){
+  const cur=localStorage.getItem('estat_appid')||'';
+  const key=prompt('e-Stat APIキー\n（https://api.e-stat.go.jp/ で無料登録）',cur);
+  if(key===null)return;
+  localStorage.setItem('estat_appid',key.trim());
+  if(key.trim())refreshPrices();
+}
+
+function initPriceWidget(){
+  const cached=localStorage.getItem('farmapp_price_cache');
+  let loaded=false;
+  if(cached){
+    try{const{data,ts}=JSON.parse(cached);
+      if(Date.now()-ts<7*24*60*60*1000){
+        priceCache=data; loaded=true;
+        const tsEl=document.getElementById('price-ts');
+        if(tsEl)tsEl.textContent='キャッシュ表示 (7日以内)';
+      }
+    }catch(e){}
+  }
+  if(!loaded){
+    PRICE_CROPS.forEach(c=>{
+      priceCache[c.key]={price:PRICE_REF[c.key],change:0,date:PRICE_REF_DATES[c.key]||PRICE_REF_DATE};
+    });
+  }
+  renderPriceTicker();
+}
+// ─────────────────────────────────────────────────────────
+
+let _lastHistRecs=[];
+let _histTab='date';
+
+function showHistTab(key, btn){
+  _histTab=key;
+  document.querySelectorAll('.h-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderHistList(_lastHistRecs);
+}
+
+function histCard(r){
+  const typeColor={'定植':'#2C5F2E','播種':'#1565C0','施肥':'#E65100','散布':'#6A1B9A','土づくり':'#4E342E','観察・記録':'#546E7A','収穫':'#C62828','鉢上げ':'#00695C'}[r.type]||'#555';
+  const dateStr=r.date?new Date(r.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric',weekday:'short'}):'';
+  const subLine = _histTab==='date'
+    ? `<span class="hist-field">${r.field||''}</span><span class="hist-time">${r.time||''}</span>`
+    : _histTab==='field'
+    ? `<span class="hist-field">${dateStr}</span><span class="hist-time">${r.time||''}</span>`
+    : _histTab==='crop'
+    ? `<span class="hist-field">${dateStr}${r.field?' · '+r.field:''}</span>`
+    : `<span class="hist-field">${dateStr}${r.field?' · '+r.field:''}${r.item?' · '+r.item:''}</span>`;
+  const row=(lbl,val)=>val?`<div class="hist-detail-row"><span class="lbl">${lbl}</span><span class="val">${val}</span></div>`:'';
+  // 採寸データをまとめる
+  const ms=[];
+  if(r.height)ms.push({l:'草丈',v:r.height+'cm'});
+  if(r.stem)ms.push({l:'茎径',v:r.stem+'mm'});
+  if(r.leaves)ms.push({l:'葉',v:r.leaves+'枚'});
+  if(r.flowers)ms.push({l:'花',v:r.flowers+'輪'});
+  if(r.fruits)ms.push({l:'実',v:r.fruits+'個'});
+  if(r.buds)ms.push({l:'蕾',v:r.buds+'個'});
+  if(r.fruitsize)ms.push({l:'果実',v:r.fruitsize});
+  if(r.leafcolor)ms.push({l:'葉色',v:r.leafcolor+'/5'});
+  const measureHtml=ms.length?`
+    <div style="margin-top:4px;padding-top:6px;border-top:1px dashed #e0e0e0">
+      <div style="font-size:10px;font-weight:700;color:#aaa;margin-bottom:4px">📏 採寸・観察</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${ms.map(m=>`<span style="background:#f0faf2;border:1px solid #c8e6c9;border-radius:10px;padding:2px 8px;font-size:11px;color:#2C5F2E"><span style="opacity:.7">${m.l} </span>${m.v}</span>`).join('')}
+      </div>
+      ${r.obs?`<div style="margin-top:5px;font-size:11px;color:#555">💬 ${r.obs}</div>`:''}
+    </div>`:(r.obs?`<div style="margin-top:4px;padding-top:6px;border-top:1px dashed #e0e0e0;font-size:11px;color:#555">💬 ${r.obs}</div>`:'');
+  // レコードIDで紐づいた写真
+  const recPhotos=(typeof photos!=='undefined'?photos:[]).filter(p=>p.recId===r.id);
+  const photoHtml=recPhotos.length?`
+    <div style="margin-top:4px;padding-top:6px;border-top:1px dashed #e0e0e0">
+      <div style="font-size:10px;font-weight:700;color:#aaa;margin-bottom:4px">📷 写真（${recPhotos.length}枚）</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${recPhotos.map(p=>`<img src="${p.src}" onclick="event.stopPropagation();openLbById('${p.id}')" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1.5px solid #ddd;flex-shrink:0" loading="lazy">`).join('')}
+      </div>
+    </div>`:'';
+  return `
+  <div class="hist-memo-card" onclick="toggleHistCard(this)">
+    <div class="hist-memo-top">
+      <span class="hist-type-badge" style="background:${typeColor}20;color:${typeColor}">${r.type||'−'}</span>
+      ${subLine}
+      <span class="hist-expand-icon">▼</span>
+    </div>
+    <div class="hist-memo-main">
+      <span class="hist-item">${r.item||''}${r.hinshu?' <span style="opacity:.7;font-size:11px">'+r.hinshu+'</span>':''}</span>
+      ${r.content?`<span class="hist-content">${r.content}</span>`:''}
+    </div>
+    ${r.drug?`<div class="hist-drug">🧪 ${r.drug}${r.qty?' · '+r.qty:''}</div>`:''}
+  </div>
+  <div class="hist-detail">
+    <div class="hist-detail-inner">
+      ${row('日付', dateStr+(r.time?' '+r.time:''))}
+      ${row('圃場', r.field)}
+      ${row('品目', r.item+(r.hinshu?' / '+r.hinshu:''))}
+      ${row('作業', r.type)}
+      ${row('詳細', r.content)}
+      ${row('薬剤', r.drug+(r.qty?' · '+r.qty:''))}
+      ${measureHtml}
+      ${photoHtml}
+      <div class="hist-detail-actions">
+        <button class="edit-m" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:700;background:#fff;color:var(--green-dark);cursor:pointer;font-family:inherit" onclick="event.stopPropagation();openEditModal('${r.id}')">✏ 編集</button>
+      </div>
+    </div>
+  </div>`;
+}
+function toggleHistCard(card){
+  const detail=card.nextElementSibling;
+  const isOpen=detail.classList.contains('open');
+  document.querySelectorAll('.hist-detail.open').forEach(d=>{d.classList.remove('open');d.previousElementSibling.classList.remove('open');});
+  if(!isOpen){detail.classList.add('open');card.classList.add('open');}
+}
+
+function renderHistList(recs){
+  const list=document.getElementById('hist-list');
+  if(!list)return;
+  if(!recs||recs.length===0){
+    list.innerHTML='<div style="text-align:center;padding:32px;color:#aaa;font-size:14px">記録がありません</div>';
+    return;
+  }
+  let groupKey;
+  if(_histTab==='date')  groupKey=r=>r.date||'不明';
+  if(_histTab==='field') groupKey=r=>r.field||'(圃場未設定)';
+  if(_histTab==='crop')  groupKey=r=>r.item||'(品目未設定)';
+  if(_histTab==='type')  groupKey=r=>r.type||'(作業未設定)';
+
+  const groups={};
+  recs.forEach(r=>{const k=groupKey(r);if(!groups[k])groups[k]=[];groups[k].push(r);});
+
+  // ソート: 日付タブは降順、それ以外は五十音順
+  let keys=Object.keys(groups);
+  if(_histTab==='date') keys.sort((a,b)=>a<b?1:-1);
+  else keys.sort((a,b)=>a.localeCompare(b,'ja',{numeric:true}));
+
+  let html='';
+  keys.forEach(k=>{
+    const label=_histTab==='date'
+      ? (()=>{const d=new Date(k);return isNaN(d)?k:d.toLocaleDateString('ja-JP',{month:'short',day:'numeric',weekday:'short'})})()
+      : k;
+    html+=`<div class="hist-group-label">${label}<span>${groups[k].length}件</span></div>`;
+    // 日付タブ以外はグループ内を日付降順に
+    const sorted=_histTab==='date'?groups[k]:groups[k].slice().sort((a,b)=>a.date<b.date?1:-1);
+    sorted.forEach(r=>{ html+=histCard(r); });
+  });
+  list.innerHTML=html;
+}
+
+function renderHistory(filterMonth){
+  if(!document.getElementById('hist-list')) return;
+  loadAllRecords().then(recs=>{
+    let filtered = recs.sort((a,b)=>a.date<b.date?1:-1);
+    if(filterMonth) filtered = filtered.filter(r=>r.date&&r.date.startsWith(filterMonth));
+    _lastHistRecs=filtered;
+    renderHistList(filtered);
+  });
+}
+
+function filterHistory(all){
+  const m = document.getElementById('hist-month').value;
+  renderHistory(all?null:(m||null));
+}
+
+
+function openEditModal(id){
+  loadAllRecords().then(recs=>{
+    const r = recs.find(x=>x.id==id);
+    if(!r) return;
+
+    document.getElementById('edit-id').value = r.id;
+    document.getElementById('edit-date').value = r.date||'';
+    document.getElementById('edit-time').value = r.time||'';
+    document.getElementById('edit-content').value = r.content||'';
+    document.getElementById('edit-drug').value = r.drug||'';
+    document.getElementById('edit-qty').value = r.qty||'';
+    // 採寸フィールド
+    document.getElementById('edit-height').value = r.height||'';
+    document.getElementById('edit-stem').value = r.stem||'';
+    document.getElementById('edit-leaves').value = r.leaves||'';
+    document.getElementById('edit-flowers').value = r.flowers||'';
+    document.getElementById('edit-fruits').value = r.fruits||'';
+    document.getElementById('edit-buds').value = r.buds||'';
+    document.getElementById('edit-fruitsize').value = r.fruitsize||'';
+    document.getElementById('edit-leafcolor').value = r.leafcolor||'';
+    document.getElementById('edit-obs').value = r.obs||'';
+    // 採寸データがあれば自動展開＋バッジ表示
+    const hasMeasure = !!(r.height||r.stem||r.leaves||r.flowers||r.fruits||r.buds||r.fruitsize||r.leafcolor||r.obs);
+    const det = document.getElementById('edit-measure-details');
+    if(hasMeasure) det.open=true; else det.open=false;
+    document.getElementById('edit-measure-badge').textContent = hasMeasure?'(記録あり)':'';
+
+    const fieldSel = document.getElementById('edit-field');
+    fieldSel.innerHTML = 圃場L.map(o=>`<option${o===r.field?' selected':''}>${o}</option>`).join('');
+
+    const itemSel = document.getElementById('edit-item');
+    itemSel.innerHTML = M.hinmoku.map(h=>`<option${h===r.item?' selected':''}>${h}</option>`).join('');
+
+    const hinshuSel = document.getElementById('edit-hinshu');
+    const hList = M.hinshu.filter(x=>x.h===r.item);
+    hinshuSel.innerHTML = `<option value="">−</option>`+hList.map(x=>`<option${x.n===r.hinshu?' selected':''}>${x.n}</option>`).join('');
+
+    const typeSel = document.getElementById('edit-type');
+    typeSel.innerHTML = M.sagyou.map(s=>`<option${s===r.type?' selected':''}>${s}</option>`).join('');
+
+    document.getElementById('edit-modal').style.display='flex';
+  });
+}
+
+function updateEditHinshu(){
+  const item = document.getElementById('edit-item').value;
+  const sel = document.getElementById('edit-hinshu');
+  const hList = M.hinshu.filter(x=>x.h===item);
+  sel.innerHTML = `<option value="">−</option>`+hList.map(x=>`<option>${x.n}</option>`).join('');
+}
+
+function closeEditModal(e){
+  if(e && e.target!==document.getElementById('edit-modal')) return;
+  document.getElementById('edit-modal').style.display='none';
+}
+
+function saveEditRecord(){
+  const rawId = document.getElementById('edit-id').value;
+  const id = /^\d+$/.test(rawId) ? Number(rawId) : rawId;
+  const updated = {
+    id,
+    date: document.getElementById('edit-date').value,
+    time: document.getElementById('edit-time').value,
+    field: document.getElementById('edit-field').value,
+    item: document.getElementById('edit-item').value,
+    hinshu: document.getElementById('edit-hinshu').value,
+    type: document.getElementById('edit-type').value,
+    content: document.getElementById('edit-content').value,
+    drug: document.getElementById('edit-drug').value,
+    qty: document.getElementById('edit-qty').value,
+    height: document.getElementById('edit-height').value,
+    stem: document.getElementById('edit-stem').value,
+    leaves: document.getElementById('edit-leaves').value,
+    flowers: document.getElementById('edit-flowers').value,
+    fruits: document.getElementById('edit-fruits').value,
+    buds: document.getElementById('edit-buds').value,
+    fruitsize: document.getElementById('edit-fruitsize').value,
+    leafcolor: document.getElementById('edit-leafcolor').value,
+    obs: document.getElementById('edit-obs').value,
+  };
+  if(!db) return;
+  const tx = db.transaction('records','readwrite');
+  tx.objectStore('records').put(updated);
+  tx.oncomplete = ()=>{
+    document.getElementById('edit-modal').style.display='none';
+    renderHistory();
+    showToast('保存しました');
+  };
+}
+
+function deleteRecord(){
+  const rawId = document.getElementById('edit-id').value;
+  const id = /^\d+$/.test(rawId) ? Number(rawId) : rawId;
+  if(!confirm('この記録を削除しますか？')) return;
+  if(!db) return;
+  const tx = db.transaction('records','readwrite');
+  tx.objectStore('records').delete(id);
+  tx.oncomplete = ()=>{
+    document.getElementById('edit-modal').style.display='none';
+    renderHistory();
+    showToast('削除しました');
+  };
+}
+
+
+let mainChart = null;
+let yAxisChart = null;
+let currentGraph = 'temp';
+
+function switchGraph(type, btn){
+  currentGraph = type;
+  document.querySelectorAll('.graph-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const title = document.getElementById('graph-card-title');
+  if(type==='temp'){
+    if(title) title.textContent='気温の推移';
+    drawTempGraph();
+  }
+  if(type==='humid'){
+    if(title) title.textContent='湿度の推移';
+    drawHumidGraph();
+  }
+}
+
+async function initGraph(){
+  if(currentGraph==='temp') await drawTempGraph();
+  if(currentGraph==='ship') {populateShipItems();searchShipments();}
+}
+
+
+async function startFetchTemps(){
+  const btn = document.getElementById('fetch-btn');
+  const prog = document.getElementById('fetch-progress');
+  const bar = document.getElementById('fetch-bar');
+  const text = document.getElementById('fetch-text');
+  const status = document.getElementById('graph-status');
+  
+  btn.disabled = true;
+  btn.textContent = '取得中...';
+  prog.style.display = 'block';
+  status.textContent = 'Open-Meteoから過去データを取得中...';
+  
+  try{
+    const temps = await fetchAllHistoricalTemps((cur,total,label)=>{
+      const pct = Math.round(cur/total*100);
+      bar.style.width = pct+'%';
+      text.textContent = `${label} (${cur}/${total}ヶ月)`;
+    });
+    
+    if(temps.length > 0){
+      await saveTempsToDB(temps);
+      status.textContent = `✅ ${temps.length}日分のデータを保存しました`;
+      await drawTempGraph();
+    } else {
+      status.textContent = '⚠️ データ取得できませんでした（CORSの制限）';
+      btn.textContent = '取得できませんでした';
+    }
+  }catch(e){
+    status.textContent = '⚠️ 取得エラー：' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📥 過去データ再取得（古河）';
+    prog.style.display = 'none';
+  }
+}
+
+
+let allTempDates = [];
+let allTempMax = [];
+let allTempMin = [];
+let currentRangeStart = 0;
+let currentRangeEnd = 100;
+
+async function drawTempGraph(){
+  const statusEl = document.getElementById('graph-status');
+  statusEl.textContent = 'データ読み込み中...';
+
+  const dbTemps = await loadTempsFromDB();
+  const tempMap = {};
+  dbTemps.forEach(t=>tempMap[t.date]={max:t.max,min:t.min});
+
+  const records = await loadAllRecords();
+  records.forEach(r=>{
+    if(r.date&&r.temp){
+      const p=r.temp.split('/');
+      if(p.length===2){const mx=parseFloat(p[0]),mn=parseFloat(p[1]);if(!isNaN(mx)&&!isNaN(mn))tempMap[r.date]={max:mx,min:mn};}
+    }
+  });
+
+  try{
+    const res=await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/080000.json');
+    if(res.ok){
+      const data=await res.json();
+      const weekly=data[1];
+      const areas=weekly?.timeSeries?.[0]?.areas||[];
+      const mito=areas.find(a=>a.area?.name?.includes('水戸'));
+      const dates=weekly?.timeSeries?.[0]?.timeDefines||[];
+      if(mito?.temps){for(let i=0;i<dates.length;i++){const d=dates[i]?.slice(0,10);if(d&&!tempMap[d]&&mito.temps[i*2]!==undefined){tempMap[d]={min:parseFloat(mito.temps[i*2])||null,max:parseFloat(mito.temps[i*2+1])||null};}}}
+    }
+  }catch(e){}
+
+  allTempDates=Object.keys(tempMap).sort();
+  allTempMax=allTempDates.map(d=>tempMap[d]?.max??null);
+  allTempMin=allTempDates.map(d=>tempMap[d]?.min??null);
+
+  if(allTempDates.length===0){
+    statusEl.textContent='「📥 データ取得」ボタンで気象庁からデータを取得してください';
+    return;
+  }
+
+  statusEl.textContent=`${allTempDates.length}日分`;
+  // デフォルト：直近3ヶ月
+  const n=allTempDates.length;
+  const startIdx=Math.max(0,n-90);
+  currentRangeStart=Math.round(startIdx/n*100);
+  currentRangeEnd=100;
+  const rs=document.getElementById('range-start');
+  const re2=document.getElementById('range-end');
+  if(rs) rs.value=currentRangeStart;
+  if(re2) re2.value=currentRangeEnd;
+  // アクティブボタンを3ヶ月に
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+  const btn3m=document.getElementById('rbtn-3m');
+  if(btn3m) btn3m.classList.add('active');
+  updateSliderLabels();
+  renderChart();
+}
+
+function updateSliderLabels(){
+  const dates = currentGraph==='humid' ? allHumidDates : allTempDates;
+  if(dates.length===0) return;
+  const si=Math.floor(currentRangeStart/100*(dates.length-1));
+  const ei=Math.floor(currentRangeEnd/100*(dates.length-1));
+  const el1=document.getElementById('range-label-start');
+  const el2=document.getElementById('range-label-end');
+  if(el1) el1.textContent=dates[si]?dates[si].slice(0,7):'';
+  if(el2) el2.textContent=dates[ei]?dates[ei].slice(0,7):'';
+  updateRangeFill();
+}
+
+function updateRangeFill(){
+  const fill=document.getElementById('range-fill');
+  if(!fill) return;
+  fill.style.left=currentRangeStart+'%';
+  fill.style.right=(100-currentRangeEnd)+'%';
+}
+
+function updateRange(){
+  const s=parseInt(document.getElementById('range-start').value);
+  const e=parseInt(document.getElementById('range-end').value);
+  currentRangeStart=Math.min(s,e-5);
+  currentRangeEnd=Math.max(e,s+5);
+  document.getElementById('range-start').value=currentRangeStart;
+  document.getElementById('range-end').value=currentRangeEnd;
+  updateSliderLabels();
+  if(currentGraph==='humid') renderHumidChart();
+  else renderChart();
+}
+
+// フィルエリアをドラッグで両ハンドルを同時移動（パン）
+(function(){
+  let panX=null,panS=null,panE=null;
+  function getTrackW(){
+    const t=document.querySelector('.dual-range-track');
+    return t?t.getBoundingClientRect().width:1;
+  }
+  function onStart(clientX){panX=clientX;panS=currentRangeStart;panE=currentRangeEnd;}
+  function onMove(clientX){
+    if(panX===null)return;
+    const delta=(clientX-panX)/getTrackW()*100;
+    const gap=panE-panS;
+    const ns=Math.max(0,Math.min(100-gap,panS+delta));
+    currentRangeStart=ns; currentRangeEnd=ns+gap;
+    document.getElementById('range-start').value=currentRangeStart;
+    document.getElementById('range-end').value=currentRangeEnd;
+    updateSliderLabels();
+    if(currentGraph==='humid')renderHumidChart();else renderChart();
+  }
+  function onEnd(){panX=null;}
+  document.addEventListener('DOMContentLoaded',()=>{
+    const fill=document.getElementById('range-fill');
+    if(!fill)return;
+    fill.style.cursor='grab';
+    fill.addEventListener('touchstart',e=>{onStart(e.touches[0].clientX);},{passive:true});
+    fill.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0].clientX);},{passive:false});
+    fill.addEventListener('touchend',onEnd);
+    fill.addEventListener('mousedown',e=>{onStart(e.clientX);e.preventDefault();});
+    document.addEventListener('mousemove',e=>{if(panX!==null)onMove(e.clientX);});
+    document.addEventListener('mouseup',onEnd);
+  });
+})();
+
+
+let allHumidDates = [];
+let allHumidMax = [];
+let allHumidMin = [];
+
+async function drawHumidGraph(){
+  const statusEl = document.getElementById('graph-status');
+  statusEl.textContent = 'データ読み込み中...';
+
+  const dbTemps = await loadTempsFromDB();
+  const humidMap = {};
+  dbTemps.forEach(t=>{
+    if(t.humidMax!==null&&t.humidMin!==null&&t.humidMax!==undefined){
+      humidMap[t.date]={max:t.humidMax, min:t.humidMin};
+    }
+  });
+
+  allHumidDates = Object.keys(humidMap).sort();
+  allHumidMax = allHumidDates.map(d=>humidMap[d]?.max??null);
+  allHumidMin = allHumidDates.map(d=>humidMap[d]?.min??null);
+
+  if(allHumidDates.length===0){
+    statusEl.textContent='「📥 データ取得」ボタンでデータを取得してください';
+    return;
+  }
+  statusEl.textContent=allHumidDates.length+'日分';
+
+  // デフォルト直近3ヶ月
+  const nh=allHumidDates.length;
+  const days=90;
+  const hStartIdx=Math.max(0,nh-days);
+  currentRangeStart=Math.round(hStartIdx/nh*100);
+  currentRangeEnd=100;
+  const rs2=document.getElementById('range-start');
+  const re3=document.getElementById('range-end');
+  if(rs2) rs2.value=currentRangeStart;
+  if(re3) re3.value=currentRangeEnd;
+  updateSliderLabels();
+  renderHumidChart();
+}
+
+function renderHumidChart(){
+  if(allHumidDates.length===0) return;
+  const n=allHumidDates.length;
+  const si=Math.floor(currentRangeStart/100*(n-1));
+  const ei=Math.min(n-1, Math.floor(currentRangeEnd/100*(n-1)));
+
+  const labels=allHumidDates.slice(si,ei+1).map(d=>{
+    const dt=new Date(d);
+    return (dt.getMonth()+1)+'/'+(dt.getDate());
+  });
+  const maxData=allHumidMax.slice(si,ei+1);
+  const minData=allHumidMin.slice(si,ei+1);
+  drawLineChart('main-chart','chart-scroll',labels,maxData,minData,'%',allHumidDates,si,true);
+}
+
+
+
+function drawLineChart(canvasId, scrollId, labels, maxData, minData, unit, allDates, siOffset, isHumid){
+  isHumid = isHumid || false;
+  const scrollEl = document.getElementById(scrollId);
+  const wrap = document.getElementById('main-chart-wrap');
+  const canvas = document.getElementById(canvasId);
+  const yCanvas = document.getElementById('y-axis-canvas');
+  if(!canvas||!wrap||!scrollEl) return;
+
+  // グラフ幅 = スクロールエリア幅に固定（期間に応じて伸縮、スクロールなし）
+  const scrollW = scrollEl.offsetWidth || 280;
+  const finalW = scrollW;
+
+  wrap.style.width = finalW + 'px';
+  canvas.width = finalW;
+  canvas.height = 240;
+  canvas.style.width = finalW + 'px';
+  canvas.style.height = '240px';
+
+  // 縦軸canvasのサイズ設定（DPR対応でiOS含め鮮明に）
+  if(yCanvas){
+    const dpr=window.devicePixelRatio||1;
+    yCanvas.width = Math.round(52*dpr);
+    yCanvas.height = Math.round(240*dpr);
+    yCanvas.style.width = '52px';
+    yCanvas.style.height = '240px';
+  }
+
+  // 実データからY軸のmin/maxを計算（両チャートで同期）
+  const validMax = maxData.filter(v=>v!=null&&!isNaN(v));
+  const validMin = minData.filter(v=>v!=null&&!isNaN(v));
+  const dataMin = validMin.length ? Math.min(...validMin) : 0;
+  const dataMax = validMax.length ? Math.max(...validMax) : (isHumid ? 100 : 40);
+  const yMin = isHumid ? 0 : Math.floor(dataMin - 2);
+  const yMax = isHumid ? 100 : Math.ceil(dataMax + 2);
+
+  const maxColor = isHumid ? '#00897B' : '#E53935';
+  const minColor = isHumid ? '#1565C0' : '#1E88E5';
+  const maxBg    = isHumid ? 'rgba(0,137,123,.2)' : 'rgba(229,57,53,.2)';
+  const minBg    = isHumid ? 'rgba(21,101,192,.1)' : 'rgba(30,136,229,.1)';
+  const maxLabel = isHumid ? '最高湿度(%)' : '最高(℃)';
+  const minLabel = isHumid ? '最低湿度(%)' : '最低(℃)';
+
+  if(mainChart) mainChart.destroy();
+
+  // y軸専用チャート（縦軸のみ表示）
+  if(yAxisChart) yAxisChart.destroy();
+  if(yCanvas){
+    yAxisChart = new Chart(yCanvas, {
+      type: 'line',
+      data: {
+        labels: [''],
+        datasets: [
+          {data: [yMax], borderColor:'transparent', pointRadius:0},
+          {data: [yMin], borderColor:'transparent', pointRadius:0}
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: false,
+        maintainAspectRatio: false,
+        layout: {padding: {top:0, bottom:0, left:0, right:0}},
+        plugins: {legend:{display:false}, tooltip:{enabled:false}},
+        scales: {
+          x: {display: false},
+          y: {
+            position: 'left',
+            min: yMin,
+            max: yMax,
+            ticks: {font:{size:10}, color:'#555', padding:2,
+                    callback:function(v){return v+unit;}, maxTicksLimit:6},
+            grid: {color:'rgba(0,0,0,.06)'},
+            afterFit: (scale) => { scale.width = 40; }
+          }
+        }
+      }
+    });
+  }
+
+  // メインチャート（y軸非表示）
+  mainChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {label:maxLabel, data:maxData, borderColor:maxColor, backgroundColor:maxBg,
+         tension:.2, pointRadius:0, borderWidth:1.5, spanGaps:true, fill:'+1'},
+        {label:minLabel, data:minData, borderColor:minColor, backgroundColor:minBg,
+         tension:.2, pointRadius:0, borderWidth:1.5, spanGaps:true, fill:'origin'}
+      ]
+    },
+    options: {
+      animation: false,
+      responsive: false,
+      maintainAspectRatio: false,
+      layout: {padding: {left:0}},
+      interaction: {mode:'index', intersect:false},
+      plugins: {
+        legend: {position:'top', labels:{font:{size:11}, boxWidth:14, padding:8}},
+        tooltip: {
+          mode:'index', intersect:false, position:'nearest',
+          callbacks: {
+            title: function(ctx2){
+              return allDates[siOffset + ctx2[0].dataIndex] || ctx2[0].label;
+            },
+            label: function(ctx2){
+              return ctx2.dataset.label + ' ' + ctx2.parsed.y + unit;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {font:{size:9}, maxRotation:45, autoSkip:true,
+                  maxTicksLimit: Math.max(6, Math.floor(finalW/60)), color:'#888'},
+          grid: {color:'rgba(0,0,0,.04)'}
+        },
+        y: {
+          display: false,
+          min: yMin,
+          max: yMax,
+        }
+      }
+    }
+  });
+
+
+  // タップでツールチップを消す
+  scrollEl.onclick = function(){
+    if(mainChart){
+      mainChart.tooltip.setActiveElements([],[]);
+      mainChart.update();
+    }
+  };
+}
+
+function setRange(months, btn){
+  if(btn){
+    document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  const dates = currentGraph==='humid' ? allHumidDates : allTempDates;
+  if(months===0){
+    currentRangeStart=0; currentRangeEnd=100;
+  }else{
+    const n=dates.length||100;
+    const days=months*30;
+    const startIdx=Math.max(0,n-days);
+    currentRangeStart=Math.round(startIdx/n*100);
+    currentRangeEnd=100;
+  }
+  const rs=document.getElementById('range-start');
+  const re2=document.getElementById('range-end');
+  if(rs) rs.value=currentRangeStart;
+  if(re2) re2.value=currentRangeEnd;
+  updateSliderLabels();
+  if(currentGraph==='humid') renderHumidChart();
+  else renderChart();
+}
+
+function resetZoom(){
+  if(mainChart) mainChart.resetZoom();
+}
+
+function renderChart(){
+  if(allTempDates.length===0) return;
+  const n=allTempDates.length;
+  const si=Math.floor(currentRangeStart/100*(n-1));
+  const ei=Math.min(n-1, Math.floor(currentRangeEnd/100*(n-1)));
+
+  const labels=allTempDates.slice(si,ei+1).map(d=>{
+    const dt=new Date(d);
+    return (dt.getMonth()+1)+'/'+(dt.getDate());
+  });
+  const maxData=allTempMax.slice(si,ei+1);
+  const minData=allTempMin.slice(si,ei+1);
+  drawLineChart('main-chart','chart-scroll',labels,maxData,minData,'℃',allTempDates,si);
+}
+
+
+function togM(btn){btn.classList.toggle('open');btn.nextElementSibling.classList.toggle('show');}
+function togRow(btn){
+  btn.classList.toggle('closed');
+  btn.nextElementSibling.classList.toggle('hidden');
+}
+function renumberRows(){
+  document.querySelectorAll('.row-card').forEach((card,i)=>{
+    const lbl=card.querySelector('.row-label');
+    if(lbl) lbl.textContent='作業 #'+(i+1);
+  });
+}
+function updateRowSummary(id){
+  const field=gv('fl-'+id)||'';
+  const item=gv('it-'+id)||'';
+  const type=gv('tp-'+id)||'';
+  const parts=[field,item,type].filter(Boolean);
+  const el=document.getElementById('rs-'+id);
+  if(el) el.textContent=parts.length?parts.join(' · '):'未入力';
+}
+
+
+function toggleMeasure(btn){
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  body.classList.toggle('show');
+}
+
+renderMasters();
+initPriceWidget();
+</script>
+
+<div id="price-edit-modal" style="display:none" class="modal-overlay" onclick="document.getElementById('price-edit-modal').style.display='none'">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="pedit-title">価格を編集</div>
+    <div class="modal-body">
+      <input type="hidden" id="pedit-key">
+      <div class="f" style="margin-bottom:10px">
+        <label>価格</label>
+        <input type="number" id="pedit-price" placeholder="例: 450" style="font-size:20px;font-weight:700">
+      </div>
+      <div class="f">
+        <label>日付（例: 5/17）</label>
+        <input type="text" id="pedit-date" placeholder="5/17">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('price-edit-modal').style.display='none'">キャンセル</button>
+      <button class="btn-save" onclick="savePriceEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="master-edit-modal" style="display:none" class="modal-overlay" onclick="document.getElementById('master-edit-modal').style.display='none'">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="medit-title">編集</div>
+    <div class="modal-body" id="medit-body"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('master-edit-modal').style.display='none'">キャンセル</button>
+      <button class="btn-save" onclick="saveMasterEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="edit-modal" style="display:none" class="modal-overlay" onclick="document.getElementById('edit-modal').style.display='none'">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">記録を編集</div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f"><label>記録日</label><input type="date" id="edit-date"></div>
+        <div class="f"><label>時刻</label><input type="time" id="edit-time"></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f"><label>圃場</label><select id="edit-field"></select></div>
+        <div class="f"><label>品目</label><select id="edit-item" onchange="updateEditHinshu()"></select></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f"><label>品種</label><select id="edit-hinshu"></select></div>
+        <div class="f"><label>作業内容</label><select id="edit-type"></select></div>
+      </div>
+      <div class="g1" style="margin-bottom:8px">
+        <div class="f"><label>詳細</label><textarea id="edit-content" style="height:70px;resize:none"></textarea></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f"><label>資材名</label><input type="text" id="edit-drug"></div>
+        <div class="f"><label>使用量・単位</label><input type="text" inputmode="decimal" id="edit-qty"></div>
+      </div>
+      <details id="edit-measure-details" style="margin-bottom:8px">
+        <summary style="font-size:12px;font-weight:700;color:#555;padding:6px 2px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+          <span>📏 採寸・観察記録</span><span id="edit-measure-badge" style="font-size:10px;color:#aaa;font-weight:400"></span>
+        </summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          <div class="g2">
+            <div class="f"><label>草丈 (cm)</label><input type="number" step="0.1" inputmode="decimal" id="edit-height" placeholder="例）25.5"></div>
+            <div class="f"><label>茎径 (mm)</label><input type="number" step="0.1" inputmode="decimal" id="edit-stem" placeholder="例）8.2"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>葉の数</label><input type="number" inputmode="numeric" id="edit-leaves" placeholder="枚"></div>
+            <div class="f"><label>花の数</label><input type="number" inputmode="numeric" id="edit-flowers" placeholder="輪"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>実の数</label><input type="number" inputmode="numeric" id="edit-fruits" placeholder="個"></div>
+            <div class="f"><label>蕾の数</label><input type="number" inputmode="numeric" id="edit-buds" placeholder="個"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>果実サイズ</label><input type="text" inputmode="decimal" id="edit-fruitsize" placeholder="例）8×4cm"></div>
+            <div class="f"><label>葉色スコア (1-5)</label><input type="number" min="1" max="5" inputmode="numeric" id="edit-leafcolor" placeholder="1〜5"></div>
+          </div>
+          <div class="g1">
+            <div class="f"><label>観察メモ</label><textarea id="edit-obs" style="height:56px;resize:none" placeholder="気づき・状態など"></textarea></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" onclick="deleteRecord()">🗑 削除</button>
+      <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEditRecord()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 下部ナビゲーション -->
+<div class="btm-nav" id="btm-nav">
+  <!-- 履歴サブタブ（履歴タブ選択時のみ表示） -->
+  <div class="btm-subtabs-bar" id="btm-histsubtabs-bar">
+    <button class="h-tab active" id="htab-date"  onclick="showHistTab('date',this)">📅 日付順</button>
+    <button class="h-tab"        id="htab-field" onclick="showHistTab('field',this)">🌾 圃場別</button>
+    <button class="h-tab"        id="htab-crop"  onclick="showHistTab('crop',this)">🌿 品目別</button>
+    <button class="h-tab"        id="htab-type"  onclick="showHistTab('type',this)">🔧 作業別</button>
+  </div>
+  <!-- マスタサブタブ（マスタタブ選択時のみ表示） -->
+  <div class="btm-subtabs-bar" id="btm-subtabs-bar">
+    <button class="m-tab active" id="mtab-hinmoku" onclick="showMasterTab('hinmoku',this)">品目</button>
+    <button class="m-tab" id="mtab-hinshu" onclick="showMasterTab('hinshu',this)">品種</button>
+    <button class="m-tab" id="mtab-sagyou" onclick="showMasterTab('sagyou',this)">作業</button>
+    <button class="m-tab" id="mtab-drug" onclick="showMasterTab('drug',this)">薬剤</button>
+  </div>
+  <!-- メインタブ -->
+  <div class="btm-tabs-bar">
+    <button class="tab active" onclick="showTab('rec')">記録</button>
+    <button class="tab" onclick="showTab('master')">マスタ</button>
+    <button class="tab" onclick="showTab('history')">履歴</button>
+    <button class="tab" onclick="showTab('graph')">グラフ</button>
+  </div>
+  <!-- アクションボタン（常時表示） -->
+  <div class="btm-actions-bar visible" id="btm-actions-bar">
+    <button class="btn-s" id="btm-btn-trash" onclick="btmTrash()" title="クリア">🗑</button>
+    <button class="btn-m" id="btm-btn-csv" onclick="btmCSV()">⬇ CSV出力</button>
+    <button class="btn-m green" id="btm-btn-txt" onclick="btmText()">📄 テキスト</button>
+  </div>
+  <!-- safe-area スペーサー -->
+  <div class="btm-safe"></div>
+</div>
+</body>
+</html>
