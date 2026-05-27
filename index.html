@@ -1665,18 +1665,29 @@ function openEditModal(id){
     if(hasMeasure) det.open=true; else det.open=false;
     document.getElementById('edit-measure-badge').textContent = hasMeasure?'(記録あり)':'';
 
-    const fieldSel = document.getElementById('edit-field');
-    fieldSel.innerHTML = 圃場L.map(o=>`<option${o===r.field?' selected':''}>${o}</option>`).join('');
+    // 値がリストにない場合も先頭に追加して選択状態を保持するヘルパー
+    const buildSel = (sel, opts, cur)=>{
+      const extra = (cur && !opts.includes(cur)) ? `<option value="${cur}" selected>${cur}（登録外）</option>` : '';
+      sel.innerHTML = extra + opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('');
+    };
+
+    buildSel(document.getElementById('edit-field'), 圃場L, r.field||'');
 
     const itemSel = document.getElementById('edit-item');
-    itemSel.innerHTML = M.hinmoku.map(h=>`<option${h===r.item?' selected':''}>${h}</option>`).join('');
+    buildSel(itemSel, M.hinmoku, r.item||'');
 
     const hinshuSel = document.getElementById('edit-hinshu');
-    const hList = M.hinshu.filter(x=>x.h===r.item);
-    hinshuSel.innerHTML = `<option value="">−</option>`+hList.map(x=>`<option${x.n===r.hinshu?' selected':''}>${x.n}</option>`).join('');
+    const hList = M.hinshu.filter(x=>x.h===(r.item||'')).map(x=>x.n);
+    const hExtra = (r.hinshu && !hList.includes(r.hinshu)) ? `<option value="${r.hinshu}" selected>${r.hinshu}（登録外）</option>` : '';
+    hinshuSel.innerHTML = `<option value="">−</option>` + hExtra + hList.map(n=>`<option${n===r.hinshu?' selected':''}>${n}</option>`).join('');
 
-    const typeSel = document.getElementById('edit-type');
-    typeSel.innerHTML = M.sagyou.map(s=>`<option${s===r.type?' selected':''}>${s}</option>`).join('');
+    buildSel(document.getElementById('edit-type'), M.sagyou, r.type||'');
+
+    const drugSel = document.getElementById('edit-drug');
+    const drugOpts = ['なし', ...M.drug.map(d=>d.n)];
+    const curDrug = r.drug||'なし';
+    const drugExtra = (curDrug && curDrug!=='なし' && !M.drug.find(d=>d.n===curDrug)) ? `<option value="${curDrug}" selected>${curDrug}（登録外）</option>` : '';
+    drugSel.innerHTML = drugExtra + drugOpts.map(o=>`<option${o===curDrug?' selected':''}>${o}</option>`).join('');
 
     document.getElementById('edit-modal').style.display='flex';
   });
@@ -1685,8 +1696,8 @@ function openEditModal(id){
 function updateEditHinshu(){
   const item = document.getElementById('edit-item').value;
   const sel = document.getElementById('edit-hinshu');
-  const hList = M.hinshu.filter(x=>x.h===item);
-  sel.innerHTML = `<option value="">−</option>`+hList.map(x=>`<option>${x.n}</option>`).join('');
+  const hList = M.hinshu.filter(x=>x.h===item).map(x=>x.n);
+  sel.innerHTML = `<option value="">−</option>`+hList.map(n=>`<option>${n}</option>`).join('');
 }
 
 function closeEditModal(e){
@@ -1706,7 +1717,7 @@ function saveEditRecord(){
     hinshu: document.getElementById('edit-hinshu').value,
     type: document.getElementById('edit-type').value,
     content: document.getElementById('edit-content').value,
-    drug: document.getElementById('edit-drug').value,
+    drug: (document.getElementById('edit-drug').value==='なし')?'':document.getElementById('edit-drug').value,
     qty: document.getElementById('edit-qty').value,
     height: document.getElementById('edit-height').value,
     stem: document.getElementById('edit-stem').value,
@@ -2254,7 +2265,7 @@ initPriceWidget();
         <div class="f"><label>詳細</label><textarea id="edit-content" style="height:70px;resize:none"></textarea></div>
       </div>
       <div class="g2" style="margin-bottom:8px">
-        <div class="f"><label>資材名</label><input type="text" id="edit-drug"></div>
+        <div class="f"><label>使用薬剤</label><select id="edit-drug"></select></div>
         <div class="f"><label>使用量・単位</label><input type="text" inputmode="decimal" id="edit-qty"></div>
       </div>
       <details id="edit-measure-details" style="margin-bottom:8px">
