@@ -655,7 +655,7 @@ function addRow(){
           <div class="mf"><label>蕾の数</label><input type="number" id="gb-${id}" placeholder="個"><div class="u">個</div></div>
         </div>
         <div class="mg2">
-          <div class="mf"><label>果実サイズ</label><input type="text" inputmode="decimal" id="gz-${id}" placeholder="例）8×4cm"><div class="u">長さ×幅</div></div>
+          <div class="mf"><label>果実サイズ</label><input type="text" id="gz-${id}" placeholder="例）8×4cm"><div class="u">長さ×幅</div></div>
           <div class="mf"><label>葉色スコア (1-5)</label><input type="number" min="1" max="5" id="gc-${id}" placeholder="1〜5"><div class="u">1=黄化 5=濃緑</div></div>
         </div>
         <div class="mg2" style="grid-template-columns:1fr">
@@ -848,6 +848,49 @@ function openLbById(id){
   const sorted = [...photos].sort((a,b)=>a.date>b.date?-1:1);
   const i = sorted.findIndex(p=>p.id===id);
   if(i>=0) openLb(i,sorted);
+}
+
+// ===== 履歴編集モーダルの写真管理 =====
+let _editRecId=null;
+function renderEditPhotos(recId){
+  _editRecId=recId;
+  const thumb=document.getElementById('edit-photo-thumbs');
+  if(!thumb)return;
+  const rp=photos.filter(p=>p.recId===recId);
+  if(rp.length===0){thumb.style.display='none';thumb.innerHTML='';return;}
+  thumb.style.display='flex';
+  thumb.innerHTML=rp.map(p=>`<div style="position:relative">
+      <img src="${p.src}" onclick="openLbById('${p.id}')" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1.5px solid #ddd;cursor:pointer" loading="lazy">
+      <button type="button" onclick="delEditPhoto('${p.id}')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#e53935;color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0">×</button>
+    </div>`).join('');
+}
+function addEditPhoto(){
+  if(!_editRecId)return;
+  const recId=_editRecId;
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.multiple=true;
+  input.onchange=function(){
+    Array.from(this.files).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const pid=Date.now()+'_'+Math.floor(Math.random()*10000);
+        const label=document.getElementById('edit-date').value||new Date().toISOString().slice(0,10);
+        const photo={id:pid,src:e.target.result,date:label,filename:file.name,recId};
+        photos.push(photo);
+        savePhotoToDB(photo);
+        renderEditPhotos(recId);
+      };
+      reader.readAsDataURL(file);
+    });
+    input.value='';
+  };
+  input.click();
+}
+function delEditPhoto(photoId){
+  if(!confirm('この写真を削除しますか？'))return;
+  delPhotoFromDB(photoId);
+  photos=photos.filter(p=>p.id!==photoId);
+  renderEditPhotos(_editRecId);
 }
 
 function delPhoto(i){
@@ -1689,6 +1732,8 @@ function openEditModal(id){
     const drugExtra = (curDrug && curDrug!=='なし' && !M.drug.find(d=>d.n===curDrug)) ? `<option value="${curDrug}" selected>${curDrug}（登録外）</option>` : '';
     drugSel.innerHTML = drugExtra + drugOpts.map(o=>`<option${o===curDrug?' selected':''}>${o}</option>`).join('');
 
+    renderEditPhotos(r.id);
+
     document.getElementById('edit-modal').style.display='flex';
   });
 }
@@ -1703,6 +1748,7 @@ function updateEditHinshu(){
 function closeEditModal(e){
   if(e && e.target!==document.getElementById('edit-modal')) return;
   document.getElementById('edit-modal').style.display='none';
+  renderHistory();
 }
 
 function saveEditRecord(){
@@ -2286,7 +2332,7 @@ initPriceWidget();
             <div class="f"><label>蕾の数</label><input type="number" inputmode="numeric" id="edit-buds" placeholder="個"></div>
           </div>
           <div class="g2">
-            <div class="f"><label>果実サイズ</label><input type="text" inputmode="decimal" id="edit-fruitsize" placeholder="例）8×4cm"></div>
+            <div class="f"><label>果実サイズ</label><input type="text" id="edit-fruitsize" placeholder="例）8×4cm"></div>
             <div class="f"><label>葉色スコア (1-5)</label><input type="number" min="1" max="5" inputmode="numeric" id="edit-leafcolor" placeholder="1〜5"></div>
           </div>
           <div class="g1">
@@ -2294,6 +2340,12 @@ initPriceWidget();
           </div>
         </div>
       </details>
+      <div style="margin-bottom:8px">
+        <button class="row-photo-btn" type="button" onclick="addEditPhoto()" style="border:1.5px solid #D8F3DC;border-radius:10px">
+          📷 写真を追加 <span style="font-weight:400;color:#777;font-size:11px">複数・カメラ可</span>
+        </button>
+        <div id="edit-photo-thumbs" style="display:none;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-danger" onclick="deleteRecord()">🗑 削除</button>
