@@ -691,19 +691,11 @@ function delRow(id){
 }
 function registerRow(id){
   const div=document.getElementById('rc-'+id);
-  const recordId=div?.dataset.rid;
-  // まだ紐づいていない写真にrecIdを付与
-  if(recordId && typeof photos!=='undefined'){
-    photos.forEach(p=>{
-      if(!p.recId){
-        p.recId=recordId;
-        savePhotoToDB(p);
-      }
-    });
-  }
+  // 行内で追加した写真は addRowPhoto 時点で既に recId 設定済み（独立写真は奪わない）
   saveRowToHistory(id);
   div?.remove();
   updateCount();
+  renderPhotos();
   showToast('登録しました');
 }
 
@@ -826,7 +818,9 @@ function addPhotos(input){
 function renderPhotos(){
   const grid = document.getElementById('photo-grid');
   if(!grid) return;
-  const sorted = [...photos].sort((a,b)=>a.date>b.date?-1:1);
+  // 記録に紐づく写真（recIdあり）は履歴側に表示するため、ここでは単独写真のみ
+  const standalone = photos.filter(p=>!p.recId);
+  const sorted = [...standalone].sort((a,b)=>a.date>b.date?-1:1);
   grid.innerHTML = sorted.map((p,i)=>`
     <div class="photo-thumb" onclick="openLbById('${p.id}')">
       <img src="${p.src}" alt="作業写真" loading="lazy">
@@ -834,7 +828,7 @@ function renderPhotos(){
       <div class="photo-date">${p.date}</div>
     </div>`).join('');
   const cnt = document.getElementById('photo-count');
-  if(cnt) cnt.textContent = photos.length > 0 ? `${photos.length}枚（端末内保存）` : '';
+  if(cnt) cnt.textContent = standalone.length > 0 ? `${standalone.length}枚（端末内保存）` : '';
 }
 
 function delPhotoById(id){
